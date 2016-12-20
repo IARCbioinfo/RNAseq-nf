@@ -75,7 +75,7 @@ readPairs = reads1
 println reads1
         
 // pre-trimming QC
-process fastqc_pre-trim {
+process fastqc_pretrim {
 	cpus params.cpu
         memory params.mem+'GB'    
         tag { file_tag }
@@ -84,8 +84,8 @@ process fastqc_pre-trim {
         file pair from readPairs
             
         output:
-        set val(file_tag), file('${file_tag}*fastqc.html') into fastqc_files
-
+	set val(file_tag), file('${file_tag}*_fastqc.html') into fastqc_files
+	
 	publishDir params.output_folder, mode: 'move'
 
         shell:

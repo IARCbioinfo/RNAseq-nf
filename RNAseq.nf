@@ -30,7 +30,7 @@ if (params.help) {
     log.info '-------------------------------------------------------------'
     log.info ''
     log.info 'Usage: '
-    log.info 'nextflow run RNAseq.nf --input_folder input/ --ref hg19.fasta [--cpu 8] [--mem 32] [--RG "PL:ILLUMINA"] [--suffix1 _1] [--suffix2 _2] [--output_folder output/]'
+    log.info 'nextflow run RNAseq.nf --input_folder input/ --ref hg19.fasta [--cpu 8] [--mem 32] [--suffix1 _1] [--suffix2 _2] [--output_folder output/]'
     log.info ''
     log.info 'Mandatory arguments:'
     log.info '    --input_folder   FOLDER                  Folder containing BAM or fastq files to be aligned.'
@@ -82,10 +82,8 @@ process fastqc_pretrim {
         
         input:
         file pair from readPairs
-            
         output:
 	set val(file_tag), file('${file_tag}*_fastqc.html') into fastqc_files
-	
 	publishDir params.output_folder, mode: 'move'
 
         shell:
@@ -95,9 +93,22 @@ process fastqc_pretrim {
         '''
 }
 
-// adapter sequence trimming
-
-// post-trimming QC
+// adapter sequence trimming and post trimming QC
+process trimming {
+            cpus params.cpu
+            memory params.mem+'G'
+            tag { file_tag }
+	    
+            input:
+	    file pair from readPairs
+            output:
+            set val(file_tag), file("${file_tag}_target_intervals.list") into indel_realign_target_files
+	    
+            shell:
+            '''
+	    trim_galore --paired --fastqc !{file_tag}!{params.suffix1}.!{params.fastq_ext}  !{file_tag}!{params.suffix2}.!{params.fastq_ext} 
+            '''
+}
 
 // alignment
 process alignment {
@@ -107,10 +118,9 @@ process alignment {
       tag { file_tag }
       
       input:
-
+      file pair from readPairs
       output:
       file("${file_tag}*.bam") into bam_files
-      
       publishDir params.output_folder, mode: 'move'
       
       shell:

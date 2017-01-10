@@ -119,7 +119,7 @@ process alignment {
       tag { file_tag }
       
       input:
-      file  from pairs3
+      file("*.fq.gz")  from pairs3
       output:
       file("${file_tag}*.bam") into bam_files
       file("${file_tag}*.bai") into bai_files

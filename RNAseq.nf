@@ -53,7 +53,7 @@ keys1 = file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.
 keys2 = file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.suffix2}.${params.fastq_ext}/ }.collect { it.getName() }
                                                                                                                .collect { it.replace("${params.suffix2}.${params.fastq_ext}",'') }
 
-if ( !(keys1.containsAll(keys2)) || !(keys2.containsAll(keys1)) ) {println "\n ERROR : There is at least one fastq without its mate, please check your fastq files."; System.exit(0)}
+if ( !(keys1.containsAll(keys2)) || !(keys2.containsAll(keys1)) ) {println "\n ERROR : There is not at least one fastq without its mate, please check your fastq files."; System.exit(0)}
 
 println keys1
 
@@ -72,6 +72,7 @@ readPairs = reads1
     .phase(reads2)
     .map { pair1, pair2 -> [ pair1[1], pair2[1] ] }
 
+readPairs2 = readPairs
 println reads1
         
 // pre-trimming QC
@@ -100,7 +101,7 @@ process trimming {
             tag { file_tag }
 	    
             input:
-	    file pair from readPairs
+	    file pair2 from readPairs2
             output:
             set val(file_tag), file("${file_tag}_target_intervals.list") into indel_realign_target_files
 	    

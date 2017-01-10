@@ -72,7 +72,6 @@ readPairs = reads1
     .phase(reads2)
     .map { pair1, pair2 -> [ pair1[1], pair2[1] ] }
 
-readPairs2 = readPairs
 println reads1
         
 // pre-trimming QC
@@ -84,6 +83,7 @@ process fastqc_pretrim {
         input:
         file pairs from readPairs
         output:
+	file pairs into readPairs2
 	set val(file_tag), file('${file_tag}*_fastqc.html') into fastqc_files
 	publishDir params.output_folder, mode: 'move'
 

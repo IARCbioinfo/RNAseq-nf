@@ -82,15 +82,15 @@ process fastqc_pretrim {
         tag { file_tag }
         
         input:
-        file pair from readPairs
+        file pairs from readPairs
         output:
 	set val(file_tag), file('${file_tag}*_fastqc.html') into fastqc_files
 	publishDir params.output_folder, mode: 'move'
 
         shell:
-        file_tag = pair[0].name.replace("${params.suffix1}.${params.fastq_ext}","")
+        file_tag = pairs[0].name.replace("${params.suffix1}.${params.fastq_ext}","")
         '''
-	!{params.fastqc} -t !{task.cpus} !{file_tag}!{params.suffix1}.!{params.fastq_ext}  !{file_tag}!{params.suffix2}.!{params.fastq_ext} 
+	!{params.fastqc} -t !{task.cpus} !{pairs[0]} !{pairs[1]}
         '''
 }
 
@@ -101,13 +101,13 @@ process trimming {
             tag { file_tag }
 	    
             input:
-	    file pair2 from readPairs2
+	    file pairs2 from readPairs2
             output:
-            set val(file_tag), file("${file_tag}_target_intervals.list") into indel_realign_target_files
+            set val(file_tag), file("${file_tag}_*.fq.gz") into pairs3
 	    
             shell:
             '''
-	    trim_galore --paired --fastqc !{file_tag}!{params.suffix1}.!{params.fastq_ext}  !{file_tag}!{params.suffix2}.!{params.fastq_ext} 
+	    trim_galore --paired --fastqc !{pairs2[0]} !{pairs2[1]}
             '''
 }
 
@@ -119,9 +119,10 @@ process alignment {
       tag { file_tag }
       
       input:
-      file pair from readPairs
+      file  from pairs3
       output:
       file("${file_tag}*.bam") into bam_files
+      file("${file_tag}*.bai") into bai_files
       publishDir params.output_folder, mode: 'move'
       
       shell:

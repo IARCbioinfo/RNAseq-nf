@@ -83,7 +83,7 @@ process fastqc_pretrim {
         file pairs from readPairs
         output:
 	file pairs into readPairs2
-	set val(file_tag)
+	val(file_tag) into filetag
 	file('${file_tag}${params.suffix1}_fastqc.html') into fastqc_pair1
 	file('${file_tag}${params.suffix2}_fastqc.html') into fastqc_pair2
 	
@@ -103,9 +103,11 @@ process trimming {
             tag { file_tag }
 	    
             input:
+	    val(file_tag) from filetag
 	    file pairs2 from readPairs2
             output:
-            set val(file_tag), file("${file_tag}_*_trimmed.fq.gz") into readPairs3
+            val(file_tag) into filetag2
+	    file("${file_tag}_*_trimmed.fq.gz") into readPairs3
 	    file('${file_tag}*.html') into fastqc_posttrim
 	
 	    publishDir params.output_folder, mode: 'move', pattern: '*.html'
@@ -125,9 +127,10 @@ process alignment {
       
       input:
       file pairs3  from readPairs3
+      val(file_tag) from filetag2
       
       output:
-      set val(file_tag)
+      val(file_tag) into filetag3
       file("${file_tag}*.bam") into bam_files
       file("${file_tag}*.bai") into bai_files
       publishDir params.output_folder, mode: 'move'

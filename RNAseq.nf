@@ -10,7 +10,6 @@ vim: syntax=groovy
 
 //default values
 params.help         = null
-params.fastqc       = './fastqc'
 params.input_folder = '.'
 params.ref          = 'hg19.fasta'
 params.genparams    = 'genomeParameters.txt'
@@ -84,13 +83,16 @@ process fastqc_pretrim {
         file pairs from readPairs
         output:
 	file pairs into readPairs2
-	set val(file_tag), file('${file_tag}*_fastqc.html') into fastqc_files
-	publishDir params.output_folder, mode: 'move'
+	set val(file_tag)
+	file('${file_tag}${params.suffix1}_fastqc.html') into fastqc_pair1
+	file('${file_tag}${params.suffix2}_fastqc.html') into fastqc_pair2
+	
+	publishDir params.output_folder, mode: 'move', pattern: '*.html'
 
-        shell:
+	shell:
         file_tag = pairs[0].name.replace("${params.suffix1}.${params.fastq_ext}","")
         '''
-	!{params.fastqc} -t !{task.cpus} !{pairs[0]} !{pairs[1]}
+	fastqc -t !{task.cpus} !{pairs[0]} !{pairs[1]}
         '''
 }
 
@@ -103,7 +105,10 @@ process trimming {
             input:
 	    file pairs2 from readPairs2
             output:
-            set val(file_tag), file("${file_tag}_*.fq.gz") into pairs3
+            set val(file_tag), file("${file_tag}_*_trimmed.fq.gz") into readPairs3
+	    file('${file_tag}*.html') into fastqc_posttrim
+	
+	    publishDir params.output_folder, mode: 'move', pattern: '*.html'
 	    
             shell:
             '''
@@ -119,14 +124,30 @@ process alignment {
       tag { file_tag }
       
       input:
-      file("*.fq.gz")  from pairs3
+      file pairs3  from readPairs3
+      
       output:
+      set val(file_tag)
       file("${file_tag}*.bam") into bam_files
       file("${file_tag}*.bai") into bai_files
       publishDir params.output_folder, mode: 'move'
       
       shell:
       '''
-      STAR --runThreadN !{task.cpus} --genomeDir !{params.gendir} --readFilesIn !{params.input_folder} --outSAMtype BAM SortedByCoordinate --quantMode GeneCounts
+      STAR --runThreadN !{task.cpus} --genomeDir !{params.gendir} --readFilesCommand zcat --readFilesIn !{pairs3[0]} !{pairs3[1]} --outSAMtype BAM SortedByCoordinate --quantMode GeneCounts
       '''
 }
+
+//2nd pass mapping (TODO)
+//process 1:
+//- merge SJ.out.tab files from all runs
+//- Filter junctions by removing likely false positives, e.g.  junctions in the mitochondrion genome, or non-canonical junctions supported by a few reads.  If using annotations, only novel junctions need to be considered here, since annotated junctions will be re-used in the 2nd pass anyway.
+//-  Use the filtered list of junctions from the 1st pass with --sjdbFileChrStartEnd option, together with annotations (via --sjdbGTFfile option) to generate the new genome indices for the 2nd pass mapping.  This needs to be done only once for all samples.
+
+//process 2: Run the 2nd pass mapping for all samples with the new genome index
+
+
+//Splice junctions trimming
+
+
+//BQSrecalibration

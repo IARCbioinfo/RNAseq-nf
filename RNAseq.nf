@@ -11,9 +11,6 @@ vim: syntax=groovy
 //default values
 params.help         = null
 params.input_folder = '.'
-params.ref          = 'hg19.fasta'
-params.genparams    = 'genomeParameters.txt'
-params.GTF          = 'hg19.gtf'
 params.cpu          = 8
 params.mem          = 32
 params.fastq_ext    = "fq.gz"
@@ -29,24 +26,23 @@ if (params.help) {
     log.info '-------------------------------------------------------------'
     log.info ''
     log.info 'Usage: '
-    log.info 'nextflow run RNAseq.nf --input_folder input/ --ref hg19.fasta [--cpu 8] [--mem 32] [--suffix1 _1] [--suffix2 _2] [--output_folder output/]'
+    log.info 'nextflow run RNAseq.nf --input_folder input/ --gendir ref/ [--cpu 8] [--mem 32] [--suffix1 _1] [--suffix2 _2] [--output_folder output/]'
     log.info ''
     log.info 'Mandatory arguments:'
     log.info '    --input_folder   FOLDER                  Folder containing BAM or fastq files to be aligned.'
-    log.info '    --ref          FILE                    Reference fasta file (with index).'
     log.info 'Optional arguments:'
     log.info '    --cpu          INTEGER                 Number of cpu used by bwa mem and sambamba (default: 8).'
     log.info '    --mem          INTEGER                 Size of memory used by sambamba (in GB) (default: 32).'
+    log.info '    --fastq_ext        STRING                Extension of fastq files (default : fq.gz)'
     log.info '    --suffix1        STRING                Suffix of fastq files 1 (default : _1)'
     log.info '    --suffix2        STRING                Suffix of fastq files 2 (default : _2)'
+    log.info '    --gendir     STRING                Folder with reference genome and STAR index (default: ref).'
     log.info '    --output_folder     STRING                Output folder (default: results_RNAseq).'
     log.info ''
     exit 1
 }
 
 //read files
-ref     = file( params.ref )
-
 keys1 = file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.suffix1}.${params.fastq_ext}/ }.collect { it.getName() }
                                                                                                                .collect { it.replace("${params.suffix1}.${params.fastq_ext}",'') }
 keys2 = file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.suffix2}.${params.fastq_ext}/ }.collect { it.getName() }
@@ -84,10 +80,8 @@ process fastqc_pretrim {
         output:
 	file pairs into readPairs2
 	val(file_tag) into filetag
-	file('${file_tag}${params.suffix1}_fastqc.html') into fastqc_pair1
-	file('${file_tag}${params.suffix2}_fastqc.html') into fastqc_pair2
-	
-	publishDir params.output_folder, mode: 'move', pattern: '*.html'
+	file("${file_tag}${params.suffix1}_fastqc.html") into fastqc_pair1
+	file("${file_tag}${params.suffix2}_fastqc.html") into fastqc_pair2
 
 	shell:
         file_tag = pairs[0].name.replace("${params.suffix1}.${params.fastq_ext}","")
@@ -96,27 +90,77 @@ process fastqc_pretrim {
         '''
 }
 
+process multiqc_pretrim {
+    cpus params.cpu
+    memory params.mem+'G'
+    tag { multiqc}
+        
+    input:
+    val(file_tag) from filetag
+    file pairs2 from readPairs2
+    file fastqc1 from fastqc_pair1.toList()
+    file fastqc2 from fastqc_pair2.toList()
+    
+    output:
+    val(file_tag) into filetag2
+    file("multiqc_pretrim_report.html") into multiqc
+    file pairs2 into readPairs3
+
+    publishDir params.output_folder, mode: 'move', pattern: 'multiqc_pretrim_report.html'
+
+    shell:
+    '''
+    multiqc . -n multiqc_pretrim_report.html
+    '''
+}
+
+
 // adapter sequence trimming and post trimming QC
-process trimming {
+process adapter_trimming {
             cpus params.cpu
             memory params.mem+'G'
             tag { file_tag }
 	    
             input:
-	    val(file_tag) from filetag
-	    file pairs2 from readPairs2
+	    val(file_tag) from filetag2
+	    file pairs3 from readPairs3
             output:
-            val(file_tag) into filetag2
-	    file("${file_tag}_*_trimmed.fq.gz") into readPairs3
-	    file('${file_tag}*.html') into fastqc_posttrim
+            val(file_tag) into filetag3
+	    file("${file_tag}*val*.fq.gz") into readPairs4
+	    file("${file_tag}*.html") into fastqc_posttrim
+	    file("${file_tag}*trimming_report.txt") into trimming_reports
 	
-	    publishDir params.output_folder, mode: 'move', pattern: '*.html'
+	    publishDir params.output_folder, mode: 'move', pattern: '{*.html,*report.txt}'
 	    
             shell:
             '''
-	    trim_galore --paired --fastqc !{pairs2[0]} !{pairs2[1]}
+	    trim_galore --paired --fastqc !{pairs3[0]} !{pairs3[1]}
             '''
 }
+
+process multiqc_posttrim {
+    cpus params.cpu
+    memory params.mem+'G'
+    tag { multiqc}
+        
+    input:
+    val(file_tag) from filetag3
+    file pairs4 from readPairs4
+    file fastqc from fastqc_posttrim.toList()
+    
+    output:
+    val(file_tag) into filetag4
+    file("multiqc_posttrim_report.html") into multiqc_post
+    file pairs5 into readPairs5
+
+    publishDir params.output_folder, mode: 'move', pattern: 'multiqc_posttrim_report.html'
+
+    shell:
+    '''
+    multiqc . -n multiqc_posttrim_report.html
+    '''
+}
+
 
 // alignment
 process alignment {
@@ -126,18 +170,18 @@ process alignment {
       tag { file_tag }
       
       input:
-      file pairs3  from readPairs3
-      val(file_tag) from filetag2
-      
+      val(file_tag) from filetag4
+      file pairs5  from readPairs5
+            
       output:
-      val(file_tag) into filetag3
+      val(file_tag) into filetag5
       file("${file_tag}*.bam") into bam_files
       file("${file_tag}*.bai") into bai_files
       publishDir params.output_folder, mode: 'move'
       
       shell:
       '''
-      STAR --runThreadN !{task.cpus} --genomeDir !{params.gendir} --readFilesCommand zcat --readFilesIn !{pairs3[0]} !{pairs3[1]} --outSAMtype BAM SortedByCoordinate --quantMode GeneCounts
+      STAR --runThreadN !{task.cpus} --genomeDir !{params.gendir} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outSAMtype BAM SortedByCoordinate --quantMode GeneCounts
       '''
 }
 

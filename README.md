@@ -19,3 +19,17 @@ To run the pipeline on a series of paired-end fastq files (with suffixes *_1* an
 ```bash
 nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --gendir ref_genome --suffix1 _1 --suffix2 _2
 ```
+
+## All parameters
+| **PARAMETER** | **DEFAULT** | **DESCRIPTION** |
+|-----------|--------------:|-------------| 
+| *--help* | null | print usage and optional parameters |
+*--input_folder* | . | input folder |
+*--gendir* | ref | reference genome folder |
+*--cpu*          | 8 | number of CPUs |
+*--mem*         | 32 | memory|
+*--fastq_ext*    | fq.gz | extension of fastq files|
+*--suffix1*      | \_1 | suffix for second element of read files pair|
+*--suffix2*      | \_2 | suffix for second element of read files pair|
+*--output_folder*   | . | output folder for aligned BAMs|
+

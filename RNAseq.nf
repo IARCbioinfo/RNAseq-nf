@@ -17,7 +17,11 @@ params.fastq_ext    = "fq.gz"
 params.suffix1      = "_1"
 params.suffix2      = "_2"
 params.gendir       = "ref"
+params.fasta_ref    = "ref.fa"
 params.output_folder   = "."
+params.annot_gtf    = "Homo_sapiens.GRCh38.79.gtf"
+params.GATK_folder  = "GATK"
+params.GATK_bundle  = "GATK_bundle"
 
 if (params.help) {
     log.info ''
@@ -93,7 +97,7 @@ process fastqc_pretrim {
 process multiqc_pretrim {
     cpus params.cpu
     memory params.mem+'G'
-    tag { multiqc}
+    tag { "multiqc pretrim"}
         
     input:
     val(file_tag) from filetag
@@ -141,7 +145,7 @@ process adapter_trimming {
 process multiqc_posttrim {
     cpus params.cpu
     memory params.mem+'G'
-    tag { multiqc}
+    tag { "multiqc posttrim"}
         
     input:
     val(file_tag) from filetag3
@@ -162,11 +166,10 @@ process multiqc_posttrim {
 }
 
 
-// alignment
+//Mapping, mark duplicates and sorting
 process alignment {
       cpus params.cpu
       memory params.mem+'G'
-      perJobMemLimit = true
       tag { file_tag }
       
       input:
@@ -175,26 +178,73 @@ process alignment {
             
       output:
       val(file_tag) into filetag5
-      file("${file_tag}*.bam") into bam_files
-      file("${file_tag}*.bai") into bai_files
-      publishDir params.output_folder, mode: 'move'
+      file("${file_tag}.bam") into bam_files
+      file("${file_tag}.bam.bai") into bai_files
       
       shell:
       '''
-      STAR --runThreadN !{task.cpus} --genomeDir !{params.gendir} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outSAMtype BAM SortedByCoordinate --quantMode GeneCounts
+      STAR --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{task.cpus} --genomeDir !{params.gendir} --sjdbGTFfile !{params.annot_gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outSAMtype BAM SortedByCoordinate --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
       '''
 }
 
-//2nd pass mapping (TODO)
-//process 1:
-//- merge SJ.out.tab files from all runs
-//- Filter junctions by removing likely false positives, e.g.  junctions in the mitochondrion genome, or non-canonical junctions supported by a few reads.  If using annotations, only novel junctions need to be considered here, since annotated junctions will be re-used in the 2nd pass anyway.
-//-  Use the filtered list of junctions from the 1st pass with --sjdbFileChrStartEnd option, together with annotations (via --sjdbGTFfile option) to generate the new genome indices for the 2nd pass mapping.  This needs to be done only once for all samples.
-
-//process 2: Run the 2nd pass mapping for all samples with the new genome index
-
-
 //Splice junctions trimming
-
+process splice_junct_trim {
+      cpus params.cpu
+      memory params.mem+'G'
+      tag { file_tag }
+      
+      input:
+      val(file_tag) from filetag5
+      file bam  from bam_files2
+      file bai  from bai_files2
+            
+      output:
+      val(file_tag) into filetag6
+      file("${file_tag}_split.bam") into bam_files
+      file("${file_tag}_split.bam.bai") into bai_files
+            
+      shell:
+      '''
+      java -jar GenomeAnalysisTK.jar -T SplitNCigarReads -R !{params.fasta_ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
+      '''
+}
 
 //BQSrecalibration
+process base_quality_score_recalibration {
+    	cpus params.cpu
+	memory params.mem+'G'
+    	tag { file_tag }
+        
+    	input:
+    	set val(file_tag)
+	file bam from bam_files2
+    	file bai from bai_files2
+    	output:
+	val(file_tag) into filetag7
+    	file("${file_tag}_recal.table") into recal_table_files
+    	file("${file_tag}_post_recal.table") into recal_table_post_files
+    	file("${file_tag}_recalibration_plots.pdf") into recal_plots_files
+    	file("${file_tag}.bam") into recal_bam_files
+    	file("${file_tag}.bam.bai") into recal_bai_files
+    	publishDir params.out_folder, mode: 'move'
+
+    	shell:
+    	'''
+    	indelsvcf=(`ls !{params.GATK_bundle}/*indels*.vcf* | grep -v ".tbi" | grep -v ".idx"`)
+    	dbsnpvcfs=(`ls !{params.GATK_bundle}/*dbsnp*.vcf* | grep -v ".tbi" | grep -v ".idx"`)
+    	dbsnpvcf=${dbsnpvcfs[@]:(-1)}
+    	knownSitescom=''
+    	for ll in $indelsvcf; do knownSitescom=$knownSitescom' -knownSites '$ll; done
+    	knownSitescom=$knownSitescom' -knownSites '$dbsnpvcf
+    	java -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam $knownSitescom -L !{params.intervals} -o !{file_tag}_recal.table
+    	java -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}_post_recal.table		
+    	java -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T AnalyzeCovariates -R !{params.fasta_ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
+    	java -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T PrintReads -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}.bam
+    	mv !{file_tag}.bai !{file_tag}.bam.bai
+    	'''
+}
+
+//Quantification
+
+
+//Diff

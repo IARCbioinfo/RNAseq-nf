@@ -96,7 +96,7 @@ process fastqc_pretrim {
 
 process multiqc_pretrim {
     cpus params.cpu
-    memory params.mem+'G'
+    memory '1G'
     tag { "multiqc pretrim"}
         
     input:
@@ -133,10 +133,11 @@ process adapter_trimming {
             output:
             val(file_tag) into filetag3
 	    file("${file_tag}*val*.fq.gz") into readPairs4
-	    file("${file_tag}*fastqc.zip") into fastqc_posttrim
+	    file("${file_tag}${params.suffix1}_val${params.suffix1}_fastqc.zip") into fastqc_postpair1
+	    file("${file_tag}${params.suffix2}_val${params.suffix2}_fastqc.zip") into fastqc_postpair2
 	    file("${file_tag}*trimming_report.txt") into trimming_reports
 	    
-	    publishDir params.output_folder, mode: 'copy', pattern: '{*.zip,*report.txt}'
+	    publishDir params.output_folder, mode: 'copy', pattern: '{*report.txt}'
 	    
             shell:
             '''
@@ -147,19 +148,20 @@ process adapter_trimming {
 
 process multiqc_posttrim {
     cpus params.cpu
-    memory params.mem+'G'
+    memory '1G'
     tag { "multiqc posttrim"}
         
     input:
     val(file_tag) from filetag3
     file pairs4 from readPairs4
-    file fastqc from fastqc_posttrim.toList()
-    
+    file fastqc1 from fastqc_postpair1.toList()
+    file fastqc2 from fastqc_postpair2.toList()
+        
     output:
     val(file_tag) into filetag4
     file("multiqc_posttrim_report.html") into multiqc_post
     file("multiqc_posttrim_report_data") into multiqc_post_data
-    file pairs5 into readPairs5
+    file pairs4 into readPairs5
 
     publishDir params.output_folder, mode: 'copy', pattern: 'multiqc_posttrim*'
 
@@ -187,8 +189,11 @@ process alignment {
       file("${file_tag}.bam.bai") into bai_files
       
       shell:
+      STAR_threads  = params.cpu.intdiv(2) - 1
+      sort_threads = params.cpu.intdiv(2) - 1
+      sort_mem     = params.mem.intdiv(4)
       '''
-      STAR --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{task.cpus} --genomeDir !{params.gendir} --sjdbGTFfile !{params.annot_gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outSAMtype BAM SortedByCoordinate --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+      STAR --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{STAR_threads} --genomeDir !{params.gendir} --sjdbGTFfile !{params.annot_gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outSAMtype SAM SortedByCoordinate --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
       '''
 }
 
@@ -252,4 +257,4 @@ process base_quality_score_recalibration {
 //Quantification
 
 
-//Diff
+//Diff Expression Analysis

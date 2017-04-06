@@ -84,8 +84,8 @@ process fastqc_pretrim {
         output:
 	file pairs into readPairs2
 	val(file_tag) into filetag
-	file("${file_tag}${params.suffix1}_fastqc.html") into fastqc_pair1
-	file("${file_tag}${params.suffix2}_fastqc.html") into fastqc_pair2
+	file("${file_tag}${params.suffix1}_fastqc.zip") into fastqc_pair1
+	file("${file_tag}${params.suffix2}_fastqc.zip") into fastqc_pair2
 
 	shell:
         file_tag = pairs[0].name.replace("${params.suffix1}.${params.fastq_ext}","")
@@ -107,13 +107,15 @@ process multiqc_pretrim {
     
     output:
     val(file_tag) into filetag2
-    file("multiqc_pretrim_report.html") into multiqc
+    file("multiqc_pretrim_report.html") into multiqc_report
+    file("multiqc_pretrim_report_data") into multiqc_data
     file pairs2 into readPairs3
 
-    publishDir params.output_folder, mode: 'move', pattern: 'multiqc_pretrim_report.html'
+    publishDir params.output_folder, mode: 'copy', pattern: 'multiqc_pretrim_report*'
 
     shell:
     '''
+    for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;
     multiqc . -n multiqc_pretrim_report.html
     '''
 }
@@ -131,16 +133,17 @@ process adapter_trimming {
             output:
             val(file_tag) into filetag3
 	    file("${file_tag}*val*.fq.gz") into readPairs4
-	    file("${file_tag}*.html") into fastqc_posttrim
+	    file("${file_tag}*fastqc.zip") into fastqc_posttrim
 	    file("${file_tag}*trimming_report.txt") into trimming_reports
-	
-	    publishDir params.output_folder, mode: 'move', pattern: '{*.html,*report.txt}'
+	    
+	    publishDir params.output_folder, mode: 'copy', pattern: '{*.zip,*report.txt}'
 	    
             shell:
             '''
 	    trim_galore --paired --fastqc !{pairs3[0]} !{pairs3[1]}
             '''
 }
+
 
 process multiqc_posttrim {
     cpus params.cpu
@@ -155,13 +158,15 @@ process multiqc_posttrim {
     output:
     val(file_tag) into filetag4
     file("multiqc_posttrim_report.html") into multiqc_post
+    file("multiqc_posttrim_report_data") into multiqc_post_data
     file pairs5 into readPairs5
 
-    publishDir params.output_folder, mode: 'move', pattern: 'multiqc_posttrim_report.html'
+    publishDir params.output_folder, mode: 'copy', pattern: 'multiqc_posttrim*'
 
     shell:
     '''
-    multiqc . -n multiqc_posttrim_report.html
+    for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;
+    multiqc -n multiqc_posttrim_report.html $PWD/
     '''
 }
 
@@ -195,13 +200,13 @@ process splice_junct_trim {
       
       input:
       val(file_tag) from filetag5
-      file bam  from bam_files2
-      file bai  from bai_files2
+      file bam  from bam_files
+      file bai  from bai_files
             
       output:
       val(file_tag) into filetag6
-      file("${file_tag}_split.bam") into bam_files
-      file("${file_tag}_split.bam.bai") into bai_files
+      file("${file_tag}_split.bam") into bam_files2
+      file("${file_tag}_split.bam.bai") into bai_files2
             
       shell:
       '''
@@ -216,7 +221,7 @@ process base_quality_score_recalibration {
     	tag { file_tag }
         
     	input:
-    	set val(file_tag)
+    	val(file_tag) from filetag6
 	file bam from bam_files2
     	file bai from bai_files2
     	output:
@@ -226,7 +231,7 @@ process base_quality_score_recalibration {
     	file("${file_tag}_recalibration_plots.pdf") into recal_plots_files
     	file("${file_tag}.bam") into recal_bam_files
     	file("${file_tag}.bam.bai") into recal_bai_files
-    	publishDir params.out_folder, mode: 'move'
+    	publishDir params.output_folder, mode: 'move'
 
     	shell:
     	'''

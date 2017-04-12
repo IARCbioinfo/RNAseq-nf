@@ -11,7 +11,6 @@ The following programs need to be installed and in the PATH environment variable
 - [*fastqc*](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/INSTALL.txt)
 - [*cutadapt*](http://cutadapt.readthedocs.io/en/stable/installation.html), which requires Python version > 2.7
 - [*trim_galore*](https://github.com/FelixKrueger/TrimGalore)
-- [*fastQC*](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
 - [*multiQC*](http://multiqc.info/docs/)
 - [*STAR*](https://github.com/alexdobin/STAR/blob/master/doc/STARmanual.pdf)
 - [*htseq*](http://www-huber.embl.de/HTSeq/doc/install.html#install); the python script htseq-count must also be in the PATH

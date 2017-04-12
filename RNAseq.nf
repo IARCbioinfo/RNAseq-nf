@@ -20,8 +20,12 @@ params.gendir       = "ref"
 params.fasta_ref    = "ref.fa"
 params.output_folder   = "."
 params.annot_gtf    = "Homo_sapiens.GRCh38.79.gtf"
+params.annot_gff    = "Homo_sapiens.GRCh38.79.gff"
 params.GATK_folder  = "GATK"
 params.GATK_bundle  = "GATK_bundle"
+params.RG           = "PL:ILLUMINA"
+params.sjtrim       = "false"
+params.bqsr         = "false"
 
 if (params.help) {
     log.info ''
@@ -187,18 +191,22 @@ process alignment {
       val(file_tag) into filetag5
       file("${file_tag}.bam") into bam_files
       file("${file_tag}.bam.bai") into bai_files
-      
+      file("STAR.${file_tag}.Log.final.out") into STAR_out
+      publishDir params.output_folder, mode: 'copy', pattern: "STAR.${file_tag}.Log.final.out"
+            
       shell:
-      STAR_threads  = params.cpu.intdiv(2) - 1
+      STAR_threads = params.cpu.intdiv(2) - 1
       sort_threads = params.cpu.intdiv(2) - 1
       sort_mem     = params.mem.intdiv(4)
       '''
-      STAR --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{STAR_threads} --genomeDir !{params.gendir} --sjdbGTFfile !{params.annot_gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outSAMtype SAM SortedByCoordinate --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+      STAR --outSAMattrRGline "ID:!{file_tag}\\tSM:!{file_tag}\\t!{params.RG}" --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{STAR_threads} --genomeDir !{params.gendir} --sjdbGTFfile !{params.annot_gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+      mv Log.final.out STAR.!{file_tag}.Log.final.out
       '''
 }
 
 //Splice junctions trimming
-process splice_junct_trim {
+if(params.sjtrim != "false"){
+   process splice_junct_trim {
       cpus params.cpu
       memory params.mem+'G'
       tag { file_tag }
@@ -215,12 +223,36 @@ process splice_junct_trim {
             
       shell:
       '''
-      java -jar GenomeAnalysisTK.jar -T SplitNCigarReads -R !{params.fasta_ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
+      java -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T SplitNCigarReads -R !{params.fasta_ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
       '''
+   }
+}else{
+   process no_splice_junct_trim {
+      cpus '1'
+      memory '100M'
+      tag { file_tag }
+      
+      input:
+      val(file_tag) from filetag5
+      file bam  from bam_files
+      file bai  from bai_files
+            
+      output:
+      val(file_tag) into filetag6
+      file bam into bam_files2
+      file bai into bai_files2
+            
+      shell:
+      '''
+      touch !{file_tag}.bam
+      '''
+   }
 }
 
+
 //BQSrecalibration
-process base_quality_score_recalibration {
+if(params.bqsr != "false"){
+   process base_quality_score_recalibration {
     	cpus params.cpu
 	memory params.mem+'G'
     	tag { file_tag }
@@ -252,9 +284,49 @@ process base_quality_score_recalibration {
     	java -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T PrintReads -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}.bam
     	mv !{file_tag}.bai !{file_tag}.bam.bai
     	'''
+   }
+}else{
+ process no_BQSR {
+      cpus '1'
+      memory '100M'
+      tag { file_tag }
+      
+      input:
+      val(file_tag) from filetag6
+      file bam  from bam_files2
+      file bai  from bai_files2
+            
+      output:
+      val(file_tag) into filetag7
+      file bam into recal_bam_files
+      file bai into recal_bai_files
+            
+      shell:
+      '''
+      touch !{file_tag}.bam
+      '''
+   }
 }
 
 //Quantification
+process quantification{
+    	cpus params.cpu
+	memory params.mem+'G'
+    	tag { file_tag }
+        
+    	input:
+    	val(file_tag) from filetag7
+	file bam from recal_bam_files
+    	file bai from recal_bai_files
+    	output:
+	val(file_tag) into filetag8
+	file bam into recal_bam_files2
+    	file bai into recal_bai_files2
+    	file("*.txt") into htseq_files
+    	publishDir params.output_folder, mode: 'move'
 
-
-//Diff Expression Analysis
+    	shell:
+    	'''
+	htseq-count -r pos -s yes -f bam !{file_tag}.bam !{params.annot_gff}
+    	'''
+}

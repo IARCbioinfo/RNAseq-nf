@@ -25,7 +25,6 @@ STAR --runThreadN n --runMode genomeGenerate --genomeDir ref --genomeFastaFiles 
 ### Prerequisites for reads trimming at splice junctions
 In order to perform the optional reads trimming at splice junctions, GATK must be installed:
 - GATK [*GenomeAnalysisTK.jar*](https://software.broadinstitute.org/gatk/guide/quickstart)
-- [GATK bundle](https://software.broadinstitute.org/gatk/download/bundle) VCF files with lists of indels and SNVs (recommended: 1000 genomes indels, Mills gold standard indels VCFs, dbsnp VCF)
 
 In addition, index *.fai* and dictionnary *.dict* must be generated from the fasta reference genome using the following commands:
 ```bash

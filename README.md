@@ -1,5 +1,5 @@
-# RNAseq
-RNAseq mapping, quality control, and reads counting pipeline
+# RNAseq-nf
+RNAseq mapping, quality control, and reads counting nextflow pipeline
 
 ## Overview of pipeline workflow
 ![workflow](RNAseqpipeline.png?raw=true "Scheme of alignment/realignment Workflow")

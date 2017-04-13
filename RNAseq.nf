@@ -323,11 +323,11 @@ process quantification{
 	val(file_tag) into filetag8
 	file bam into recal_bam_files2
     	file bai into recal_bai_files2
-    	file("*.txt") into htseq_files
+    	file("${file_tag}_count.txt") into htseq_files
     	publishDir params.output_folder, mode: 'move'
 
     	shell:
     	'''
-	htseq-count -r pos -s yes -f bam !{file_tag}.bam !{params.annot_gff}
+	htseq-count -r pos -s yes -f bam !{file_tag}.bam !{params.annot_gff} > !{file_tag}_count.txt
     	'''
 }

@@ -86,12 +86,13 @@ process fastqc_pretrim {
         
         input:
         file pairs from readPairs
+	
         output:
-	file pairs into readPairs2
-	val(file_tag) into filetag
 	file("${file_tag}${params.suffix1}_fastqc.zip") into fastqc_pair1
 	file("${file_tag}${params.suffix2}_fastqc.zip") into fastqc_pair2
-
+	file pairs into readPairs3
+	val(file_tag) into filetag2
+	
 	shell:
         file_tag = pairs[0].name.replace("${params.suffix1}.${params.fastq_ext}","")
         '''
@@ -105,16 +106,12 @@ process multiqc_pretrim {
     tag { "multiqc pretrim"}
         
     input:
-    val(file_tag) from filetag
-    file pairs2 from readPairs2
-    file fastqc1 from fastqc_pair1.toList()
-    file fastqc2 from fastqc_pair2.toList()
+    file fastqc1 from fastqc_pair1.collect()
+    file fastqc2 from fastqc_pair2.collect()
     
     output:
-    val(file_tag) into filetag2
     file("multiqc_pretrim_report.html") into multiqc_report
     file("multiqc_pretrim_report_data") into multiqc_data
-    file pairs2 into readPairs3
 
     publishDir params.output_folder, mode: 'copy', pattern: 'multiqc_pretrim_report*'
 
@@ -138,8 +135,8 @@ process adapter_trimming {
             output:
             val(file_tag) into filetag3
 	    file("${file_tag}*val*.fq.gz") into readPairs4
-	    file("${file_tag}${params.suffix1}_val${params.suffix1}_fastqc.zip") into fastqc_postpair1
-	    file("${file_tag}${params.suffix2}_val${params.suffix2}_fastqc.zip") into fastqc_postpair2
+	    file("${file_tag}${params.suffix1}_val_1_fastqc.zip") into fastqc_postpair1
+	    file("${file_tag}${params.suffix2}_val_2_fastqc.zip") into fastqc_postpair2
 	    file("${file_tag}*trimming_report.txt") into trimming_reports
 	    
 	    publishDir params.output_folder, mode: 'copy', pattern: '{*report.txt}'
@@ -157,16 +154,12 @@ process multiqc_posttrim {
     tag { "multiqc posttrim"}
         
     input:
-    val(file_tag) from filetag3
-    file pairs4 from readPairs4
-    file fastqc1 from fastqc_postpair1.toList()
-    file fastqc2 from fastqc_postpair2.toList()
+    file fastqc1 from fastqc_postpair1.collect()
+    file fastqc2 from fastqc_postpair2.collect()
         
     output:
-    val(file_tag) into filetag4
     file("multiqc_posttrim_report.html") into multiqc_post
     file("multiqc_posttrim_report_data") into multiqc_post_data
-    file pairs4 into readPairs5
 
     publishDir params.output_folder, mode: 'copy', pattern: 'multiqc_posttrim*'
 
@@ -185,8 +178,8 @@ process alignment {
       tag { file_tag }
       
       input:
-      val(file_tag) from filetag4
-      file pairs5  from readPairs5
+      val(file_tag) from filetag3
+      file pairs5  from readPairs4
             
       output:
       val(file_tag) into filetag5
@@ -224,7 +217,7 @@ if(params.sjtrim != "false"){
             
       shell:
       '''
-      java -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T SplitNCigarReads -R !{params.fasta_ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
+      java -Xmx!{params.mem}g -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T SplitNCigarReads -R !{params.fasta_ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
       '''
    }
 }else{
@@ -279,10 +272,10 @@ if(params.bqsr != "false"){
     	knownSitescom=''
     	for ll in $indelsvcf; do knownSitescom=$knownSitescom' -knownSites '$ll; done
     	knownSitescom=$knownSitescom' -knownSites '$dbsnpvcf
-    	java -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam $knownSitescom -L !{params.intervals} -o !{file_tag}_recal.table
-    	java -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}_post_recal.table		
-    	java -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T AnalyzeCovariates -R !{params.fasta_ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
-    	java -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T PrintReads -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}.bam
+    	java -Xmx!{params.mem}g -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam $knownSitescom -L !{params.intervals} -o !{file_tag}_recal.table
+    	java -Xmx!{params.mem}g -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}_post_recal.table		
+    	java -Xmx!{params.mem}g -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T AnalyzeCovariates -R !{params.fasta_ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
+    	java -Xmx!{params.mem}g -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T PrintReads -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}.bam
     	mv !{file_tag}.bai !{file_tag}.bam.bai
     	'''
    }

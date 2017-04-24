@@ -186,7 +186,11 @@ process alignment {
       file("${file_tag}.bam") into bam_files
       file("${file_tag}.bam.bai") into bai_files
       file("STAR.${file_tag}.Log.final.out") into STAR_out
-      publishDir params.output_folder, mode: 'copy', pattern: "STAR.${file_tag}.Log.final.out"
+      if( (params.sjtrim == "false")&(params.bqsr == "false") ){
+        publishDir params.output_folder, mode: 'copy'
+      }else{
+	publishDir params.output_folder, mode: 'copy', pattern: "STAR.${file_tag}.Log.final.out"
+      }
             
       shell:
       STAR_threads = params.cpu.intdiv(2) - 1
@@ -214,6 +218,9 @@ if(params.sjtrim != "false"){
       val(file_tag) into filetag6
       file("${file_tag}_split.bam") into bam_files2
       file("${file_tag}_split.bam.bai") into bai_files2
+      if(params.bqsr == "false"){
+        publishDir params.output_folder, mode: 'copy'
+      }
             
       shell:
       '''
@@ -313,14 +320,12 @@ process quantification{
 	file bam from recal_bam_files
     	file bai from recal_bai_files
     	output:
-	val(file_tag) into filetag8
-	file bam into recal_bam_files2
-    	file bai into recal_bai_files2
-    	file("${file_tag}_count.txt") into htseq_files
+	file("${file_tag}_count.txt") into htseq_files
     	publishDir params.output_folder, mode: 'move'
 
     	shell:
     	'''
+	python -V
 	htseq-count -r pos -s yes -f bam !{file_tag}.bam !{params.annot_gff} > !{file_tag}_count.txt
     	'''
 }

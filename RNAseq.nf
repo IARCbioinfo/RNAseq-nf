@@ -6,13 +6,18 @@ vim: syntax=groovy
 
 // requirement:
 // - fastQC
+// - multiQC
 // - STAR
+// - samblaster
+// - sambamba
+// - htseq
 
 //default values
 params.help         = null
 params.input_folder = '.'
 params.cpu          = 8
-params.mem          = 32
+params.mem          = 40
+params.memOther     = 1
 params.fastq_ext    = "fq.gz"
 params.suffix1      = "_1"
 params.suffix2      = "_2"
@@ -41,7 +46,8 @@ if (params.help) {
     log.info '    --input_folder   FOLDER                  Folder containing BAM or fastq files to be aligned.'
     log.info 'Optional arguments:'
     log.info '    --cpu          INTEGER                 Number of cpu used by bwa mem and sambamba (default: 8).'
-    log.info '    --mem          INTEGER                 Size of memory used by sambamba (in GB) (default: 32).'
+    log.info '    --mem          INTEGER                 Size of memory used for mapping (in GB) (default: 32).'
+    log.info '    --memOther     INTEGER                 Size of memory used for QC and cutadapt (in GB) (default: 32).'
     log.info '    --fastq_ext        STRING                Extension of fastq files (default : fq.gz)'
     log.info '    --suffix1        STRING                Suffix of fastq files 1 (default : _1)'
     log.info '    --suffix2        STRING                Suffix of fastq files 2 (default : _2)'
@@ -81,7 +87,7 @@ println reads1
 // pre-trimming QC
 process fastqc_pretrim {
 	cpus params.cpu
-        memory params.mem+'GB'    
+        memory params.memOther+'GB'    
         tag { file_tag }
         
         input:
@@ -101,8 +107,8 @@ process fastqc_pretrim {
 }
 
 process multiqc_pretrim {
-    cpus params.cpu
-    memory '1G'
+    cpus '1'
+    memory params.memOther+'GB'    
     tag { "multiqc pretrim"}
         
     input:
@@ -125,8 +131,8 @@ process multiqc_pretrim {
 
 // adapter sequence trimming and post trimming QC
 process adapter_trimming {
-            cpus params.cpu
-            memory params.mem+'G'
+            cpus '1'
+            memory params.memOther+'GB'
             tag { file_tag }
 	    
             input:
@@ -149,8 +155,8 @@ process adapter_trimming {
 
 
 process multiqc_posttrim {
-    cpus params.cpu
-    memory '1G'
+    cpus '1'
+    memory params.memOther+'GB'
     tag { "multiqc posttrim"}
         
     input:
@@ -311,8 +317,8 @@ if(params.bqsr != "false"){
 
 //Quantification
 process quantification{
-    	cpus params.cpu
-	memory params.mem+'G'
+    	cpus '1'
+	memory params.memOther+'GB'
     	tag { file_tag }
         
     	input:
@@ -325,7 +331,6 @@ process quantification{
 
     	shell:
     	'''
-	python -V
 	htseq-count -r pos -s yes -f bam !{file_tag}.bam !{params.annot_gff} > !{file_tag}_count.txt
     	'''
 }

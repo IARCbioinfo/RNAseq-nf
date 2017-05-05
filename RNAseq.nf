@@ -32,6 +32,7 @@ params.intervals    = "intervals.bed"
 params.RG           = "PL:ILLUMINA"
 params.sjtrim       = "false"
 params.bqsr         = "false"
+params.stranded     = "no"
 
 if (params.help) {
     log.info ''
@@ -331,6 +332,6 @@ process quantification{
 
     	shell:
     	'''
-	htseq-count -r pos -s yes -f bam !{file_tag}.bam !{params.annot_gff} > !{file_tag}_count.txt
+	htseq-count -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{params.annot_gff} > !{file_tag}_count.txt
     	'''
 }

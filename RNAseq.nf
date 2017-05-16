@@ -6,13 +6,18 @@ vim: syntax=groovy
 
 // requirement:
 // - fastQC
+// - multiQC
 // - STAR
+// - samblaster
+// - sambamba
+// - htseq
 
 //default values
 params.help         = null
 params.input_folder = '.'
 params.cpu          = 8
-params.mem          = 32
+params.mem          = 40
+params.memOther     = 1
 params.fastq_ext    = "fq.gz"
 params.suffix1      = "_1"
 params.suffix2      = "_2"
@@ -27,6 +32,7 @@ params.intervals    = "intervals.bed"
 params.RG           = "PL:ILLUMINA"
 params.sjtrim       = "false"
 params.bqsr         = "false"
+params.stranded     = "no"
 
 if (params.help) {
     log.info ''
@@ -41,7 +47,8 @@ if (params.help) {
     log.info '    --input_folder   FOLDER                  Folder containing BAM or fastq files to be aligned.'
     log.info 'Optional arguments:'
     log.info '    --cpu          INTEGER                 Number of cpu used by bwa mem and sambamba (default: 8).'
-    log.info '    --mem          INTEGER                 Size of memory used by sambamba (in GB) (default: 32).'
+    log.info '    --mem          INTEGER                 Size of memory used for mapping (in GB) (default: 32).'
+    log.info '    --memOther     INTEGER                 Size of memory used for QC and cutadapt (in GB) (default: 32).'
     log.info '    --fastq_ext        STRING                Extension of fastq files (default : fq.gz)'
     log.info '    --suffix1        STRING                Suffix of fastq files 1 (default : _1)'
     log.info '    --suffix2        STRING                Suffix of fastq files 2 (default : _2)'
@@ -81,17 +88,18 @@ println reads1
 // pre-trimming QC
 process fastqc_pretrim {
 	cpus params.cpu
-        memory params.mem+'GB'    
+        memory params.memOther+'GB'    
         tag { file_tag }
         
         input:
         file pairs from readPairs
+	
         output:
-	file pairs into readPairs2
-	val(file_tag) into filetag
 	file("${file_tag}${params.suffix1}_fastqc.zip") into fastqc_pair1
 	file("${file_tag}${params.suffix2}_fastqc.zip") into fastqc_pair2
-
+	file pairs into readPairs3
+	val(file_tag) into filetag2
+	
 	shell:
         file_tag = pairs[0].name.replace("${params.suffix1}.${params.fastq_ext}","")
         '''
@@ -100,21 +108,17 @@ process fastqc_pretrim {
 }
 
 process multiqc_pretrim {
-    cpus params.cpu
-    memory '1G'
+    cpus '1'
+    memory params.memOther+'GB'    
     tag { "multiqc pretrim"}
         
     input:
-    val(file_tag) from filetag
-    file pairs2 from readPairs2
-    file fastqc1 from fastqc_pair1.toList()
-    file fastqc2 from fastqc_pair2.toList()
+    file fastqc1 from fastqc_pair1.collect()
+    file fastqc2 from fastqc_pair2.collect()
     
     output:
-    val(file_tag) into filetag2
     file("multiqc_pretrim_report.html") into multiqc_report
     file("multiqc_pretrim_report_data") into multiqc_data
-    file pairs2 into readPairs3
 
     publishDir params.output_folder, mode: 'copy', pattern: 'multiqc_pretrim_report*'
 
@@ -128,8 +132,8 @@ process multiqc_pretrim {
 
 // adapter sequence trimming and post trimming QC
 process adapter_trimming {
-            cpus params.cpu
-            memory params.mem+'G'
+            cpus '1'
+            memory params.memOther+'GB'
             tag { file_tag }
 	    
             input:
@@ -138,8 +142,8 @@ process adapter_trimming {
             output:
             val(file_tag) into filetag3
 	    file("${file_tag}*val*.fq.gz") into readPairs4
-	    file("${file_tag}${params.suffix1}_val${params.suffix1}_fastqc.zip") into fastqc_postpair1
-	    file("${file_tag}${params.suffix2}_val${params.suffix2}_fastqc.zip") into fastqc_postpair2
+	    file("${file_tag}${params.suffix1}_val_1_fastqc.zip") into fastqc_postpair1
+	    file("${file_tag}${params.suffix2}_val_2_fastqc.zip") into fastqc_postpair2
 	    file("${file_tag}*trimming_report.txt") into trimming_reports
 	    
 	    publishDir params.output_folder, mode: 'copy', pattern: '{*report.txt}'
@@ -152,21 +156,17 @@ process adapter_trimming {
 
 
 process multiqc_posttrim {
-    cpus params.cpu
-    memory '1G'
+    cpus '1'
+    memory params.memOther+'GB'
     tag { "multiqc posttrim"}
         
     input:
-    val(file_tag) from filetag3
-    file pairs4 from readPairs4
-    file fastqc1 from fastqc_postpair1.toList()
-    file fastqc2 from fastqc_postpair2.toList()
+    file fastqc1 from fastqc_postpair1.collect()
+    file fastqc2 from fastqc_postpair2.collect()
         
     output:
-    val(file_tag) into filetag4
     file("multiqc_posttrim_report.html") into multiqc_post
     file("multiqc_posttrim_report_data") into multiqc_post_data
-    file pairs4 into readPairs5
 
     publishDir params.output_folder, mode: 'copy', pattern: 'multiqc_posttrim*'
 
@@ -185,15 +185,19 @@ process alignment {
       tag { file_tag }
       
       input:
-      val(file_tag) from filetag4
-      file pairs5  from readPairs5
+      val(file_tag) from filetag3
+      file pairs5  from readPairs4
             
       output:
       val(file_tag) into filetag5
       file("${file_tag}.bam") into bam_files
       file("${file_tag}.bam.bai") into bai_files
       file("STAR.${file_tag}.Log.final.out") into STAR_out
-      publishDir params.output_folder, mode: 'copy', pattern: "STAR.${file_tag}.Log.final.out"
+      if( (params.sjtrim == "false")&(params.bqsr == "false") ){
+        publishDir params.output_folder, mode: 'copy'
+      }else{
+	publishDir params.output_folder, mode: 'copy', pattern: "STAR.${file_tag}.Log.final.out"
+      }
             
       shell:
       STAR_threads = params.cpu.intdiv(2) - 1
@@ -221,10 +225,13 @@ if(params.sjtrim != "false"){
       val(file_tag) into filetag6
       file("${file_tag}_split.bam") into bam_files2
       file("${file_tag}_split.bam.bai") into bai_files2
+      if(params.bqsr == "false"){
+        publishDir params.output_folder, mode: 'copy'
+      }
             
       shell:
       '''
-      java -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T SplitNCigarReads -R !{params.fasta_ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
+      java -Xmx!{params.mem}g -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T SplitNCigarReads -R !{params.fasta_ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
       '''
    }
 }else{
@@ -279,10 +286,10 @@ if(params.bqsr != "false"){
     	knownSitescom=''
     	for ll in $indelsvcf; do knownSitescom=$knownSitescom' -knownSites '$ll; done
     	knownSitescom=$knownSitescom' -knownSites '$dbsnpvcf
-    	java -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam $knownSitescom -L !{params.intervals} -o !{file_tag}_recal.table
-    	java -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}_post_recal.table		
-    	java -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T AnalyzeCovariates -R !{params.fasta_ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
-    	java -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T PrintReads -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}.bam
+    	java -Xmx!{params.mem}g -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam $knownSitescom -L !{params.intervals} -o !{file_tag}_recal.table
+    	java -Xmx!{params.mem}g -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}_post_recal.table		
+    	java -Xmx!{params.mem}g -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T AnalyzeCovariates -R !{params.fasta_ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
+    	java -Xmx!{params.mem}g -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T PrintReads -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}.bam
     	mv !{file_tag}.bai !{file_tag}.bam.bai
     	'''
    }
@@ -311,8 +318,8 @@ if(params.bqsr != "false"){
 
 //Quantification
 process quantification{
-    	cpus params.cpu
-	memory params.mem+'G'
+    	cpus '1'
+	memory params.memOther+'GB'
     	tag { file_tag }
         
     	input:
@@ -320,14 +327,11 @@ process quantification{
 	file bam from recal_bam_files
     	file bai from recal_bai_files
     	output:
-	val(file_tag) into filetag8
-	file bam into recal_bam_files2
-    	file bai into recal_bai_files2
-    	file("${file_tag}_count.txt") into htseq_files
+	file("${file_tag}_count.txt") into htseq_files
     	publishDir params.output_folder, mode: 'move'
 
     	shell:
     	'''
-	htseq-count -r pos -s yes -f bam !{file_tag}.bam !{params.annot_gff} > !{file_tag}_count.txt
+	htseq-count -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{params.annot_gff} > !{file_tag}_count.txt
     	'''
 }

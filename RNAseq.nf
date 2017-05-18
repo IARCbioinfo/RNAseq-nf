@@ -331,7 +331,7 @@ process RSEQC{
 
     	shell:
     	'''
-	read_distribution.py -i ${file_tag}".bam" -r ${params.gene_bed} > ${file_tag}"_readdist.txt"
+	read_distribution.py -i !{file_tag}".bam" -r !{params.gene_bed} > !{file_tag}"_readdist.txt"
     	'''
 }
 

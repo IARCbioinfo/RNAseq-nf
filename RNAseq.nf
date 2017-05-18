@@ -29,6 +29,7 @@ params.annot_gff    = "Homo_sapiens.GRCh38.79.gff"
 params.GATK_folder  = "GATK"
 params.GATK_bundle  = "GATK_bundle"
 params.intervals    = "intervals.bed"
+params.gene_bed     = "gene.bed"
 params.RG           = "PL:ILLUMINA"
 params.sjtrim       = "false"
 params.bqsr         = "false"
@@ -59,32 +60,70 @@ if (params.help) {
 }
 
 //read files
-keys1 = file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.suffix1}.${params.fastq_ext}/ }.collect { it.getName() }
+mode = 'fastq'
+if (file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.fastq_ext}/ }.size() > 0){
+    println "fastq files found, proceed with alignment"
+}else{
+    if (file(params.input_folder).listFiles().findAll { it.name ==~ /.*bam/ }.size() > 0){
+        println "BAM files found, proceed with realignment"; mode ='bam'; files = Channel.fromPath( params.input_folder+'/*.bam' )
+    }else{
+        println "ERROR: input folder contains no fastq nor BAM files"; System.exit(0)
+    }
+}
+
+if(mode=='bam'){
+    process bam2fastq {
+        cpus '1'
+        memory params.memOther+'G'
+        tag { file_tag }
+        
+        input:
+        file infile from files
+     
+        output:
+	val(file_tag)
+	set file("${file_tag}_1.fq.gz"), file("${file_tag}_2.fq.gz")  into readPairs
+
+        shell:
+	file_tag = infile.baseName
+		
+        '''
+        set -o pipefail
+        samtools collate -uOn 128 !{file_tag}.bam tmp_!{file_tag} | samtools fastq -1 !{file_tag}_1.fq -2 !{file_tag}_2.fq -
+	gzip !{file_tag}_1.fq
+	gzip !{file_tag}_2.fq
+        '''
+    }
+}else{
+if(mode=='fastq'){
+    println "fastq mode"
+    
+    keys1 = file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.suffix1}.${params.fastq_ext}/ }.collect { it.getName() }
                                                                                                                .collect { it.replace("${params.suffix1}.${params.fastq_ext}",'') }
-keys2 = file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.suffix2}.${params.fastq_ext}/ }.collect { it.getName() }
+    keys2 = file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.suffix2}.${params.fastq_ext}/ }.collect { it.getName() }
                                                                                                                .collect { it.replace("${params.suffix2}.${params.fastq_ext}",'') }
-
-if ( !(keys1.containsAll(keys2)) || !(keys2.containsAll(keys1)) ) {println "\n ERROR : There is not at least one fastq without its mate, please check your fastq files."; System.exit(0)}
-
-println keys1
+    if ( !(keys1.containsAll(keys2)) || !(keys2.containsAll(keys1)) ) {println "\n ERROR : There is not at least one fastq without its mate, please check your fastq files."; System.exit(0)}
+    println keys1
 
 // Gather files ending with _1 suffix
-reads1 = Channel
+   reads1 = Channel
     .fromPath( params.input_folder+'/*'+params.suffix1+'.'+params.fastq_ext )
     .map {  path -> [ path.name.replace("${params.suffix1}.${params.fastq_ext}",""), path ] }
 
 // Gather files ending with _2 suffix
-reads2 = Channel
+   reads2 = Channel
     .fromPath( params.input_folder+'/*'+params.suffix2+'.'+params.fastq_ext )
     .map {  path -> [ path.name.replace("${params.suffix2}.${params.fastq_ext}",""), path ] }
 
 // Match the pairs on two channels having the same 'key' (name) and emit a new pair containing the expected files
-readPairs = reads1
+   readPairs = reads1
     .phase(reads2)
     .map { pair1, pair2 -> [ pair1[1], pair2[1] ] }
 
-println reads1
-        
+    println reads1
+}
+}
+
 // pre-trimming QC
 process fastqc_pretrim {
 	cpus params.cpu
@@ -95,8 +134,8 @@ process fastqc_pretrim {
         file pairs from readPairs
 	
         output:
-	file("${file_tag}${params.suffix1}_fastqc.zip") into fastqc_pair1
-	file("${file_tag}${params.suffix2}_fastqc.zip") into fastqc_pair2
+	file("${file_tag}${params.suffix1}_pretrim_fastqc.zip") into fastqc_pair1
+	file("${file_tag}${params.suffix2}_pretrim_fastqc.zip") into fastqc_pair2
 	file pairs into readPairs3
 	val(file_tag) into filetag2
 	
@@ -104,31 +143,10 @@ process fastqc_pretrim {
         file_tag = pairs[0].name.replace("${params.suffix1}.${params.fastq_ext}","")
         '''
 	fastqc -t !{task.cpus} !{pairs[0]} !{pairs[1]}
+	mv !{file_tag}!{params.suffix1}_fastqc.zip !{file_tag}!{params.suffix1}_pretrim_fastqc.zip
+	mv !{file_tag}!{params.suffix2}_fastqc.zip !{file_tag}!{params.suffix2}_pretrim_fastqc.zip 
         '''
 }
-
-process multiqc_pretrim {
-    cpus '1'
-    memory params.memOther+'GB'    
-    tag { "multiqc pretrim"}
-        
-    input:
-    file fastqc1 from fastqc_pair1.collect()
-    file fastqc2 from fastqc_pair2.collect()
-    
-    output:
-    file("multiqc_pretrim_report.html") into multiqc_report
-    file("multiqc_pretrim_report_data") into multiqc_data
-
-    publishDir params.output_folder, mode: 'copy', pattern: 'multiqc_pretrim_report*'
-
-    shell:
-    '''
-    for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;
-    multiqc . -n multiqc_pretrim_report.html
-    '''
-}
-
 
 // adapter sequence trimming and post trimming QC
 process adapter_trimming {
@@ -155,29 +173,6 @@ process adapter_trimming {
 }
 
 
-process multiqc_posttrim {
-    cpus '1'
-    memory params.memOther+'GB'
-    tag { "multiqc posttrim"}
-        
-    input:
-    file fastqc1 from fastqc_postpair1.collect()
-    file fastqc2 from fastqc_postpair2.collect()
-        
-    output:
-    file("multiqc_posttrim_report.html") into multiqc_post
-    file("multiqc_posttrim_report_data") into multiqc_post_data
-
-    publishDir params.output_folder, mode: 'copy', pattern: 'multiqc_posttrim*'
-
-    shell:
-    '''
-    for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;
-    multiqc -n multiqc_posttrim_report.html $PWD/
-    '''
-}
-
-
 //Mapping, mark duplicates and sorting
 process alignment {
       cpus params.cpu
@@ -200,7 +195,7 @@ process alignment {
       }
             
       shell:
-      STAR_threads = params.cpu.intdiv(2) - 1
+      STAR_threads = params.cpu.intdiv(2)
       sort_threads = params.cpu.intdiv(2) - 1
       sort_mem     = params.mem.intdiv(4)
       '''
@@ -316,6 +311,30 @@ if(params.bqsr != "false"){
    }
 }
 
+recal_bam_files.into { recal_bam_files4QC; recal_bam_files4quant }
+recal_bai_files.into { recal_bai_files4QC; recal_bai_files4quant }
+
+//RSEQC
+process RSEQC{
+    	cpus '1'
+	memory params.memOther+'GB'
+    	tag { file_tag }
+        
+    	input:
+    	val(file_tag) from filetag7
+	file bam from recal_bam_files4QC
+    	file bai from recal_bai_files4QC
+    	output:
+	val(file_tag) into filetag8
+	file("${file_tag}_readdist.txt") into rseqc_files
+    	publishDir params.output_folder, mode: 'copy'
+
+    	shell:
+    	'''
+	read_distribution.py -i ${file_tag}".bam" -r ${params.gene_bed} > ${file_tag}"_readdist.txt"
+    	'''
+}
+
 //Quantification
 process quantification{
     	cpus '1'
@@ -323,15 +342,45 @@ process quantification{
     	tag { file_tag }
         
     	input:
-    	val(file_tag) from filetag7
-	file bam from recal_bam_files
-    	file bai from recal_bai_files
+    	val(file_tag) from filetag8
+	file bam from recal_bam_files4quant
+    	file bai from recal_bai_files4quant
     	output:
 	file("${file_tag}_count.txt") into htseq_files
-    	publishDir params.output_folder, mode: 'move'
+    	publishDir params.output_folder, mode: 'copy'
 
     	shell:
     	'''
 	htseq-count -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{params.annot_gff} > !{file_tag}_count.txt
     	'''
+}
+
+
+process multiqc {
+    cpus '1'
+    memory params.memOther+'GB'
+    tag { "multiqc"}
+        
+    input:
+    file fastqc1 from fastqc_pair1.collect()
+    file fastqc2 from fastqc_pair2.collect()
+    file fastqcpost1 from fastqc_postpair1.collect()
+    file fastqcpost2 from fastqc_postpair2.collect()
+    file STAR from STAR_out.collect()
+    file htseq from htseq_files.collect()
+    file rseqc from rseqc_files.collect()
+    file trim from trimming_reports.collect()
+        
+    output:
+    file("multiqc_pretrim_report.html") into multiqc_post
+    file("multiqc_posttrim_report_data") into multiqc_post_data
+
+    publishDir params.output_folder, mode: 'copy', pattern: 'multiqc*'
+
+    shell:
+    '''
+    for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;
+    multiqc . -n multiqc_pretrim_report.html --ignore *trimming_report.txt --ignore *count.txt --ignore STAR* --ignore *_val_[12]_fastqc.zip -m fastqc
+    multiqc . -n multiqc_posttrim_report.html -m fastqc -m cutadapt -m star -m rseqc -m htseq  --ignore *!{params.suffix1}_pretrim_fastqc.zip --ignore *!{params.suffix2}_pretrim_fastqc.zip
+    '''
 }

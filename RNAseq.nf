@@ -313,6 +313,7 @@ if(params.bqsr != "false"){
 
 recal_bam_files.into { recal_bam_files4QC; recal_bam_files4quant }
 recal_bai_files.into { recal_bai_files4QC; recal_bai_files4quant }
+filetag7.into{ filetag7A; filetag7B }
 
 //RSEQC
 process RSEQC{
@@ -321,11 +322,10 @@ process RSEQC{
     	tag { file_tag }
         
     	input:
-    	val(file_tag) from filetag7
+    	val(file_tag) from filetag7A
 	file bam from recal_bam_files4QC
     	file bai from recal_bai_files4QC
     	output:
-	val(file_tag) into filetag8
 	file("${file_tag}_readdist.txt") into rseqc_files
     	publishDir params.output_folder, mode: 'copy'
 
@@ -342,7 +342,7 @@ process quantification{
     	tag { file_tag }
         
     	input:
-    	val(file_tag) from filetag8
+    	val(file_tag) from filetag7B
 	file bam from recal_bam_files4quant
     	file bai from recal_bai_files4quant
     	output:
@@ -362,14 +362,14 @@ process multiqc {
     tag { "multiqc"}
         
     input:
-    file fastqc1 from fastqc_pair1.collect()
-    file fastqc2 from fastqc_pair2.collect()
-    file fastqcpost1 from fastqc_postpair1.collect()
-    file fastqcpost2 from fastqc_postpair2.collect()
-    file STAR from STAR_out.collect()
-    file htseq from htseq_files.collect()
-    file rseqc from rseqc_files.collect()
-    file trim from trimming_reports.collect()
+    file fastqc1 from fastqc_pair1.toList()
+    file fastqc2 from fastqc_pair2.toList()
+    file fastqcpost1 from fastqc_postpair1.toList()
+    file fastqcpost2 from fastqc_postpair2.toList()
+    file STAR from STAR_out.toList()
+    file htseq from htseq_files.toList()
+    file rseqc from rseqc_files.toList()
+    file trim from trimming_reports.toList()
         
     output:
     file("multiqc_pretrim_report.html") into multiqc_post

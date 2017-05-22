@@ -16,8 +16,8 @@ vim: syntax=groovy
 params.help         = null
 params.input_folder = '.'
 params.cpu          = 8
-params.mem          = 40
-params.memOther     = 1
+params.mem          = 50
+params.memOther     = 2
 params.fastq_ext    = "fq.gz"
 params.suffix1      = "_1"
 params.suffix2      = "_2"
@@ -230,26 +230,9 @@ if(params.sjtrim != "false"){
       '''
    }
 }else{
-   process no_splice_junct_trim {
-      cpus '1'
-      memory '100M'
-      tag { file_tag }
-      
-      input:
-      val(file_tag) from filetag5
-      file bam  from bam_files
-      file bai  from bai_files
-            
-      output:
-      val(file_tag) into filetag6
-      file bam into bam_files2
-      file bai into bai_files2
-            
-      shell:
-      '''
-      touch !{file_tag}.bam
-      '''
-   }
+      filetag6=filetag5
+      bam_files2=bam_files
+      bai_files2=bai_files
 }
 
 
@@ -288,27 +271,10 @@ if(params.bqsr != "false"){
     	mv !{file_tag}.bai !{file_tag}.bam.bai
     	'''
    }
-}else{
- process no_BQSR {
-      cpus '1'
-      memory '100M'
-      tag { file_tag }
-      
-      input:
-      val(file_tag) from filetag6
-      file bam  from bam_files2
-      file bai  from bai_files2
-            
-      output:
-      val(file_tag) into filetag7
-      file bam into recal_bam_files
-      file bai into recal_bai_files
-            
-      shell:
-      '''
-      touch !{file_tag}.bam
-      '''
-   }
+}else{      
+      filetag7=filetag6
+      recal_bam_files=bam_files2
+      recal_bai_files=bai_files2
 }
 
 recal_bam_files.into { recal_bam_files4QC; recal_bam_files4quant }
@@ -362,14 +328,14 @@ process multiqc {
     tag { "multiqc"}
         
     input:
-    file fastqc1 from fastqc_pair1.toList()
-    file fastqc2 from fastqc_pair2.toList()
-    file fastqcpost1 from fastqc_postpair1.toList()
-    file fastqcpost2 from fastqc_postpair2.toList()
-    file STAR from STAR_out.toList()
-    file htseq from htseq_files.toList()
-    file rseqc from rseqc_files.toList()
-    file trim from trimming_reports.toList()
+    file fastqc1 from fastqc_pair1.collect()
+    file fastqc2 from fastqc_pair2.collect()
+    file fastqcpost1 from fastqc_postpair1.collect()
+    file fastqcpost2 from fastqc_postpair2.collect()
+    file STAR from STAR_out.collect()
+    file htseq from htseq_files.collect()
+    file rseqc from rseqc_files.collect()
+    file trim from trimming_reports.collect()
         
     output:
     file("multiqc_pretrim_report.html") into multiqc_post

@@ -11,6 +11,7 @@ The following programs need to be installed and in the PATH environment variable
 - [*fastqc*](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/INSTALL.txt)
 - [*cutadapt*](http://cutadapt.readthedocs.io/en/stable/installation.html), which requires Python version > 2.7
 - [*trim_galore*](https://github.com/FelixKrueger/TrimGalore)
+- [*RESeQC*](http://rseqc.sourceforge.net/)
 - [*multiQC*](http://multiqc.info/docs/)
 - [*STAR*](https://github.com/alexdobin/STAR/blob/master/doc/STARmanual.pdf)
 - [*htseq*](http://www-huber.embl.de/HTSeq/doc/install.html#install); the python script htseq-count must also be in the PATH
@@ -60,18 +61,21 @@ nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --gendir ref_genome --su
 *--input_folder* | . | input folder |
 *--output_folder* |   . | output folder |
 *--gendir* | ref | reference genome folder |
-*--cpu*          | 8 | number of CPUs |
-*--mem*         | 32 | memory|
+*--cpu*          | 4 | number of CPUs |
+*--mem*         | 50 | memory for mapping|
+*--memOther*     | 2 | memory for QC and counting|
 *--fastq_ext*    | fq.gz | extension of fastq files|
 *--suffix1*      | \_1 | suffix for second element of read files pair|
 *--suffix2*      | \_2 | suffix for second element of read files pair|
 *--output_folder*   | . | output folder for aligned BAMs|
-*--fasta_ref* |    ref.fa | reference genome fasta file for GATK |
 *--annot_gtf*   |  Homo_sapiens.GRCh38.79.gtf | annotation GTF file |
 *--annot_gff*   |  Homo_sapiens.GRCh38.79.gff | annotation GFF file |
+*--fasta_ref* |    ref.fa | reference genome fasta file for GATK |
 *--GATK_folder* |  GATK | folder with jar file GenomeAnalysisTK.jar |
 *--GATK_bundle* |  GATK_bundle | folder with files for BQSR |
 *--intervals*   |  intervals.bed | bed file with intervals for BQSR | 
 *--RG*          |  PL:ILLUMINA | string to be added to read group information in BAM file |
 *--sjtrim*      |  false | enable reads trimming at splice junctions | 
 *--bqsr*        |  false | enable base quality score recalibration |
+*--gene_bed*   |  gene.bed | bed file with genes for RESeQC | 
+*--stranded*   |  no | Strand information for counting with htseq [no, yes, reverse] | 

@@ -217,7 +217,7 @@ if(params.sjtrim != "false"){
       file bai  from bai_files
             
       output:
-      val(file_tag) into filetag6
+      val("${file_tag}_split") into filetag6
       file("${file_tag}_split.bam") into bam_files2
       file("${file_tag}_split.bam.bai") into bai_files2
       if(params.bqsr == "false"){
@@ -322,7 +322,7 @@ process quantification{
 }
 
 
-process multiqc {
+process multiqc_pretrim {
     cpus '1'
     memory params.memOther+'GB'
     tag { "multiqc"}
@@ -330,6 +330,26 @@ process multiqc {
     input:
     file fastqc1 from fastqc_pair1.collect()
     file fastqc2 from fastqc_pair2.collect()
+        
+    output:
+    file("multiqc_pretrim_report.html") into multiqc_pre
+    file("multiqc_pretrim_report_data") into multiqc_pre_data
+
+    publishDir params.output_folder, mode: 'copy', pattern: 'multiqc*'
+
+    shell:
+    '''
+    for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;
+    multiqc . -n multiqc_pretrim_report.html -m fastqc
+    '''
+}
+
+process multiqc_posttrim {
+    cpus '1'
+    memory params.memOther+'GB'
+    tag { "multiqc"}
+        
+    input:
     file fastqcpost1 from fastqc_postpair1.collect()
     file fastqcpost2 from fastqc_postpair2.collect()
     file STAR from STAR_out.collect()
@@ -338,7 +358,7 @@ process multiqc {
     file trim from trimming_reports.collect()
         
     output:
-    file("multiqc_pretrim_report.html") into multiqc_post
+    file("multiqc_posttrim_report.html") into multiqc_post
     file("multiqc_posttrim_report_data") into multiqc_post_data
 
     publishDir params.output_folder, mode: 'copy', pattern: 'multiqc*'
@@ -346,7 +366,6 @@ process multiqc {
     shell:
     '''
     for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;
-    multiqc . -n multiqc_pretrim_report.html --ignore *trimming_report.txt --ignore *count.txt --ignore STAR* --ignore *_val_[12]_fastqc.zip -m fastqc
-    multiqc . -n multiqc_posttrim_report.html -m fastqc -m cutadapt -m star -m rseqc -m htseq  --ignore *!{params.suffix1}_pretrim_fastqc.zip --ignore *!{params.suffix2}_pretrim_fastqc.zip
+    multiqc . -n multiqc_posttrim_report.html -m fastqc -m cutadapt -m star -m rseqc -m htseq
     '''
 }

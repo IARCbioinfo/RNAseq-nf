@@ -34,6 +34,8 @@ params.RG           = "PL:ILLUMINA"
 params.sjtrim       = "false"
 params.bqsr         = "false"
 params.stranded     = "no"
+params.hisat2       = "false"
+params.hisat2_idx   = "ref.fa.idx"
 
 if (params.help) {
     log.info ''
@@ -187,21 +189,28 @@ process alignment {
       val(file_tag) into filetag5
       file("${file_tag}.bam") into bam_files
       file("${file_tag}.bam.bai") into bai_files
-      file("STAR.${file_tag}.Log.final.out") into STAR_out
+      file("*.Log.final.out") into align_out
       if( (params.sjtrim == "false")&(params.bqsr == "false") ){
         publishDir params.output_folder, mode: 'copy'
       }else{
-	publishDir params.output_folder, mode: 'copy', pattern: "STAR.${file_tag}.Log.final.out"
+	publishDir params.output_folder, mode: 'copy', pattern: "Log.final.out"
       }
             
       shell:
-      STAR_threads = params.cpu.intdiv(2)
+      align_threads = params.cpu.intdiv(2)
       sort_threads = params.cpu.intdiv(2) - 1
       sort_mem     = params.mem.intdiv(4)
+      
+      if(params.hisat2!="false"){
+            '''
+            hisat2 --rg-id !{file_tag} --rg SM:!{file_tag} --rg !{params.RG} --met-file hisat2.!{file_tag}.Log.final.out -p !{align_threads} -x !{params.hisat2_idx} -1 !{pairs5[0]} -2 !{pairs5[1]} | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+	    '''
+      }else{
       '''
-      STAR --outSAMattrRGline "ID:!{file_tag}\\tSM:!{file_tag}\\t!{params.RG}" --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{STAR_threads} --genomeDir !{params.gendir} --sjdbGTFfile !{params.annot_gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+      STAR --outSAMattrRGline ID:!{file_tag} SM:!{file_tag} !{params.RG} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{align_threads} --genomeDir !{params.gendir} --sjdbGTFfile !{params.annot_gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
       mv Log.final.out STAR.!{file_tag}.Log.final.out
       '''
+      }
 }
 
 //Splice junctions trimming
@@ -352,7 +361,7 @@ process multiqc_posttrim {
     input:
     file fastqcpost1 from fastqc_postpair1.collect()
     file fastqcpost2 from fastqc_postpair2.collect()
-    file STAR from STAR_out.collect()
+    file STAR from align_out.collect()
     file htseq from htseq_files.collect()
     file rseqc from rseqc_files.collect()
     file trim from trimming_reports.collect()

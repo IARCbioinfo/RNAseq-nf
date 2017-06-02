@@ -22,6 +22,17 @@ In addition, STAR requires genome indices that can be generated from a genome fa
 STAR --runThreadN n --runMode genomeGenerate --genomeDir ref --genomeFastaFiles ref.fa --sjdbGTFfile ref.gtf --sjdbOverhang 99
 ```
 
+### Prerequisites for alignment with hisat2
+In order to perform the optional alignment with hisat2, hisat2 must be installed:
+- [*hisat2*](https://ccb.jhu.edu/software/hisat2/index.shtml)
+
+In addition, indexes files *.ht2* must be downloaded from generated from [*hisat2*](https://ccb.jhu.edu/software/hisat2/index.shtml), or generated from a reference fasta file (e.g., reference.fa) and a GTF annotation file (e.g., reference.gtf) using the following commands:
+```bash
+extract_splice_sites.py reference.gtf > genome.ss
+extract_exons.py reference.gtf > genome.exon
+hisat2-build reference.fa --ss genome.ss --exon genome.exon genome_tran
+```
+
 ### Prerequisites for reads trimming at splice junctions
 In order to perform the optional reads trimming at splice junctions, GATK must be installed:
 - GATK [*GenomeAnalysisTK.jar*](https://software.broadinstitute.org/gatk/guide/quickstart)
@@ -79,3 +90,6 @@ nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --gendir ref_genome --su
 *--bqsr*        |  false | enable base quality score recalibration |
 *--gene_bed*   |  gene.bed | bed file with genes for RESeQC | 
 *--stranded*   |  no | Strand information for counting with htseq [no, yes, reverse] | 
+*--stranded*   |  no | Strand information for counting with htseq [no, yes, reverse] | 
+*--hisat2*   |  false | use hisat2 instead of STAR for mapping | 
+*--hisat2_idx*   |  genome_tran | index filename prefix for hisat2 | 

@@ -52,6 +52,11 @@ java -jar picard.jar CreateSequenceDictionary R= ref.fa O= ref.dict
 To run the pipeline on a series of paired-end fastq files (with suffixes *_1* and *_2*) in folder *fastq*, and a reference genome with indexes in folder *ref_genome*, one can type:
 ```bash
 nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --gendir ref_genome --suffix1 _1 --suffix2 _2
+``` 
+### Use hisat2 for mapping
+To use the reads trimming at splice junctions step, you must add the ***--hisat2* option**, specify the path to the folder containing the hisat2 index files, as well as satisfy the requirements above mentionned. For example:
+```bash
+nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --suffix1 _1 --suffix2 _2 --hisat2 --hisat2_idx /home/user/reference/genome_tran 
 ```
 ### Enable reads trimming at splice junctions
 To use the reads trimming at splice junctions step, you must add the ***--sjtrim* option**, specify the path to the folder containing the GenomeAnalysisTK jar file, as well as satisfy the requirements above mentionned. For example:

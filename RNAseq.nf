@@ -236,7 +236,7 @@ if(params.sjtrim != "false"){
       shell:
       '''
       java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T SplitNCigarReads -R !{params.fasta_ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
-      
+      mv !{file_tag}_split.bai !{file_tag}_split.bam.bai
       '''
    }
 }else{

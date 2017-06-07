@@ -274,10 +274,10 @@ if(params.bqsr != "false"){
     	knownSitescom=''
     	for ll in $indelsvcf; do knownSitescom=$knownSitescom' -knownSites '$ll; done
     	knownSitescom=$knownSitescom' -knownSites '$dbsnpvcf
-    	java -Xmx!{params.mem}g -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam $knownSitescom -L !{params.intervals} -o !{file_tag}_recal.table
-    	java -Xmx!{params.mem}g -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}_post_recal.table		
-    	java -Xmx!{params.mem}g -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T AnalyzeCovariates -R !{params.fasta_ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
-    	java -Xmx!{params.mem}g -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T PrintReads -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}.bam
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam $knownSitescom -L !{params.intervals} -o !{file_tag}_recal.table
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}_post_recal.table		
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T AnalyzeCovariates -R !{params.fasta_ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T PrintReads -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}.bam
     	mv !{file_tag}.bai !{file_tag}.bam.bai
     	'''
    }

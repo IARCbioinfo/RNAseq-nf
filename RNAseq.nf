@@ -35,7 +35,7 @@ params.sjtrim       = "false"
 params.bqsr         = "false"
 params.stranded     = "no"
 params.hisat2       = "false"
-params.hisat2_idx   = "ref.fa.idx"
+params.hisat2_idx   = "genome_tran"
 
 if (params.help) {
     log.info ''
@@ -235,7 +235,8 @@ if(params.sjtrim != "false"){
             
       shell:
       '''
-      java -Xmx!{params.mem}g -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T SplitNCigarReads -R !{params.fasta_ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
+      java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T SplitNCigarReads -R !{params.fasta_ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
+      
       '''
    }
 }else{

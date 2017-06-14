@@ -1,65 +1,100 @@
 #! /usr/bin/env nextflow
-// usage : ./RNAseq.nf --input_folder input/ --cpu 8 --mem 32 --ref hg19.fasta 
-/*
-vim: syntax=groovy
--*- mode: groovy;-*- */
 
-// requirement:
-// - fastQC
-// - multiQC
-// - STAR
-// - samblaster
-// - sambamba
-// - htseq
+// vim: syntax=groovy -*- mode: groovy;-*-
 
-//default values
-params.help         = null
+// Copyright (C) 2017 IARC/WHO
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 params.input_folder = '.'
 params.cpu          = 8
 params.mem          = 50
-params.memOther     = 2
+params.mem_QC       = 2
 params.fastq_ext    = "fq.gz"
 params.suffix1      = "_1"
 params.suffix2      = "_2"
-params.gendir       = "ref"
-params.fasta_ref    = "ref.fa"
+params.ref_folder   = "ref"
+params.ref          = "ref.fa"
 params.output_folder   = "."
 params.annot_gtf    = "Homo_sapiens.GRCh38.79.gtf"
 params.annot_gff    = "Homo_sapiens.GRCh38.79.gff"
 params.GATK_folder  = "GATK"
 params.GATK_bundle  = "GATK_bundle"
-params.intervals    = "intervals.bed"
-params.gene_bed     = "gene.bed"
+params.bed          = "intervals.bed"
 params.RG           = "PL:ILLUMINA"
-params.sjtrim       = "false"
-params.bqsr         = "false"
 params.stranded     = "no"
-params.hisat2       = "false"
 params.hisat2_idx   = "genome_tran"
+params.sjtrim       = null
+params.recalibration         = null
+params.hisat2       = null
+params.htseq_maxreads = null //default value of htseq-count is 30000000
+params.help         = null
+
+
+log.info ""
+log.info "--------------------------------------------------------"
+log.info "  RNAseq-nf 1.0.0: alignment, QC, and reads counting workflow for whole exome/whole genomeRNA sequencing "
+log.info "--------------------------------------------------------"
+log.info "Copyright (C) IARC/WHO"
+log.info "This program comes with ABSOLUTELY NO WARRANTY; for details see LICENSE"
+log.info "This is free software, and you are welcome to redistribute it"
+log.info "under certain conditions; see LICENSE for details."
+log.info "--------------------------------------------------------"
+log.info ""
+
 
 if (params.help) {
-    log.info ''
     log.info '-------------------------------------------------------------'
-    log.info 'NEXTFLOW RNASEQ ANALYSIS PIPELINE'
+    log.info ' USAGE  '
     log.info '-------------------------------------------------------------'
     log.info ''
-    log.info 'Usage: '
-    log.info 'nextflow run RNAseq.nf --input_folder input/ --gendir ref/ [--cpu 8] [--mem 32] [--suffix1 _1] [--suffix2 _2] [--output_folder output/]'
+    log.info 'nextflow run iarcbioinfo/RNAseq.nf [-with-docker] --input_folder input/ --ref_folder ref/ [OPTIONS]'
     log.info ''
     log.info 'Mandatory arguments:'
     log.info '    --input_folder   FOLDER                  Folder containing BAM or fastq files to be aligned.'
+    log.info ""
     log.info 'Optional arguments:'
     log.info '    --cpu          INTEGER                 Number of cpu used by bwa mem and sambamba (default: 8).'
     log.info '    --mem          INTEGER                 Size of memory used for mapping (in GB) (default: 32).'
-    log.info '    --memOther     INTEGER                 Size of memory used for QC and cutadapt (in GB) (default: 32).'
+    log.info '    --mem_QC     INTEGER                 Size of memory used for QC and cutadapt (in GB) (default: 32).'
     log.info '    --fastq_ext        STRING                Extension of fastq files (default : fq.gz)'
     log.info '    --suffix1        STRING                Suffix of fastq files 1 (default : _1)'
     log.info '    --suffix2        STRING                Suffix of fastq files 2 (default : _2)'
-    log.info '    --gendir     STRING                Folder with reference genome and STAR index (default: ref).'
+    log.info '    --ref_folder     STRING                Folder with reference genome and STAR index (default: ref).'
     log.info '    --output_folder     STRING                Output folder (default: results_RNAseq).'
+    log.info ""
+    log.info "Flags:"
     log.info ''
-    exit 1
+    exit 0
+}else {
+  /* Software information */
+  log.info "input_folder=${params.input_folder}"
+  log.info "ref=${params.ref}"
+  log.info "cpu=${params.cpu}"
+  log.info "mem=${params.mem}"
+  log.info "fastq_ext=${params.fastq_ext}"
+  log.info "suffix1=${params.suffix1}"
+  log.info "suffix2=${params.suffix2}"
+  log.info "output_folder=${params.output_folder}"
+  log.info "bed=${params.bed}"
+  log.info "GATK_bundle=${params.GATK_bundle}"
+  log.info "GATK_folder=${params.GATK_folder}"
+  log.info "indel_realignment=${params.indel_realignment}"
+  log.info "recalibration=${params.recalibration}"
+  log.info "help=${params.help}"
 }
+
 
 //read files
 mode = 'fastq'
@@ -76,7 +111,7 @@ if (file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.fast
 if(mode=='bam'){
     process bam2fastq {
         cpus '1'
-        memory params.memOther+'G'
+        memory params.mem_QC+'G'
         tag { file_tag }
         
         input:
@@ -129,7 +164,7 @@ if(mode=='fastq'){
 // pre-trimming QC
 process fastqc_pretrim {
 	cpus params.cpu
-        memory params.memOther+'GB'    
+        memory params.mem_QC+'GB'    
         tag { file_tag }
         
         input:
@@ -153,7 +188,7 @@ process fastqc_pretrim {
 // adapter sequence trimming and post trimming QC
 process adapter_trimming {
             cpus '1'
-            memory params.memOther+'GB'
+            memory params.mem_QC+'GB'
             tag { file_tag }
 	    
             input:
@@ -190,7 +225,7 @@ process alignment {
       file("${file_tag}.bam") into bam_files
       file("${file_tag}.bam.bai") into bai_files
       file("*.Log.final.out") into align_out
-      if( (params.sjtrim == "false")&(params.bqsr == "false") ){
+      if( (params.sjtrim == null)&(params.recalibration == null) ){
         publishDir params.output_folder, mode: 'copy'
       }else{
 	publishDir params.output_folder, mode: 'copy', pattern: "Log.final.out"
@@ -201,20 +236,20 @@ process alignment {
       sort_threads = params.cpu.intdiv(2) - 1
       sort_mem     = params.mem.intdiv(4)
       
-      if(params.hisat2!="false"){
+      if(params.hisat2){
             '''
             hisat2 --rg-id !{file_tag} --rg SM:!{file_tag} --rg !{params.RG} --met-file hisat2.!{file_tag}.Log.final.out -p !{align_threads} -x !{params.hisat2_idx} -1 !{pairs5[0]} -2 !{pairs5[1]} | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
 	    '''
       }else{
       '''
-      STAR --outSAMattrRGline ID:!{file_tag} SM:!{file_tag} !{params.RG} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{align_threads} --genomeDir !{params.gendir} --sjdbGTFfile !{params.annot_gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+      STAR --outSAMattrRGline ID:!{file_tag} SM:!{file_tag} !{params.RG} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{align_threads} --genomeDir !{params.ref_folder} --sjdbGTFfile !{params.annot_gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
       mv Log.final.out STAR.!{file_tag}.Log.final.out
       '''
       }
 }
 
 //Splice junctions trimming
-if(params.sjtrim != "false"){
+if(params.sjtrim){
    process splice_junct_trim {
       cpus params.cpu
       memory params.mem+'G'
@@ -229,13 +264,13 @@ if(params.sjtrim != "false"){
       val("${file_tag}_split") into filetag6
       file("${file_tag}_split.bam") into bam_files2
       file("${file_tag}_split.bam.bai") into bai_files2
-      if(params.bqsr == "false"){
+      if(params.recalibration == null){
         publishDir params.output_folder, mode: 'copy'
       }
             
       shell:
       '''
-      java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T SplitNCigarReads -R !{params.fasta_ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
+      java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T SplitNCigarReads -R !{params.ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
       mv !{file_tag}_split.bai !{file_tag}_split.bam.bai
       '''
    }
@@ -247,7 +282,7 @@ if(params.sjtrim != "false"){
 
 
 //BQSrecalibration
-if(params.bqsr != "false"){
+if(params.recalibration){
    process base_quality_score_recalibration {
     	cpus params.cpu
 	memory params.mem+'G'
@@ -274,10 +309,10 @@ if(params.bqsr != "false"){
     	knownSitescom=''
     	for ll in $indelsvcf; do knownSitescom=$knownSitescom' -knownSites '$ll; done
     	knownSitescom=$knownSitescom' -knownSites '$dbsnpvcf
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam $knownSitescom -L !{params.intervals} -o !{file_tag}_recal.table
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}_post_recal.table		
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T AnalyzeCovariates -R !{params.fasta_ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T PrintReads -nct !{params.cpu} -R !{params.fasta_ref} -I !{file_tag}.bam -BQSR !{file_tag}_recal.table -L !{params.intervals} -o !{file_tag}.bam
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.ref} -I !{file_tag}.bam $knownSitescom -L !{params.bed} -o !{file_tag}_recal.table
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{params.bed} -o !{file_tag}_post_recal.table		
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T AnalyzeCovariates -R !{params.ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T PrintReads -nct !{params.cpu} -R !{params.ref} -I !{file_tag}.bam -BQSR !{file_tag}_recal.table -L !{params.bed} -o !{file_tag}.bam
     	mv !{file_tag}.bai !{file_tag}.bam.bai
     	'''
    }
@@ -294,7 +329,7 @@ filetag7.into{ filetag7A; filetag7B }
 //RSEQC
 process RSEQC{
     	cpus '1'
-	memory params.memOther+'GB'
+	memory params.mem_QC+'GB'
     	tag { file_tag }
         
     	input:
@@ -307,14 +342,14 @@ process RSEQC{
 
     	shell:
     	'''
-	read_distribution.py -i !{file_tag}".bam" -r !{params.gene_bed} > !{file_tag}"_readdist.txt"
+	read_distribution.py -i !{file_tag}".bam" -r !{params.bed} > !{file_tag}"_readdist.txt"
     	'''
 }
 
 //Quantification
 process quantification{
     	cpus '1'
-	memory params.memOther+'GB'
+	memory params.mem_QC+'GB'
     	tag { file_tag }
         
     	input:
@@ -326,15 +361,25 @@ process quantification{
     	publishDir params.output_folder, mode: 'copy'
 
     	shell:
+	buffer=''
+	if(params.htseq_maxreads) buffer='--max-reads-in-buffer '+params.htseq_maxreads+' '+'--additional-attr gene_name'
+	//check later if htseq 0.8 options --nonunique and --additional-attr are useful
     	'''
-	htseq-count -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{params.annot_gff} > !{file_tag}_count.txt
+	htseq-count -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{params.annot_gff} !{buffer} > !{file_tag}_count.txt 
     	'''
 }
+
+//Transcript discovery 
+//stringtie !{file_tag}.bam -o !{file_tag}.gtf -p !{cpus} -G !{params.annot_gtf} -l !{file_tag} -C !{file_tag}_cov_refs.gtf
+//ls *.gtf > mergelist.txt
+//stringtie --merge -p !{cpus} -G !{params.annot_gtf} -o stringtie_merged.gtf mergelist.txt
+//gffcompare -r !{params.annot_gtf} -G -o !{file_tag} !{file_tag}.gtf
+//stringtie -e -B -p !{cpus} -G stringtie_merged.gtf -o !{file_tag}_merged.gtf !{file_tag}.bam -A !{file_tag}_gene_abund.tab -B
 
 
 process multiqc_pretrim {
     cpus '1'
-    memory params.memOther+'GB'
+    memory params.mem_QC+'GB'
     tag { "multiqc"}
         
     input:
@@ -354,9 +399,10 @@ process multiqc_pretrim {
     '''
 }
 
+
 process multiqc_posttrim {
     cpus '1'
-    memory params.memOther+'GB'
+    memory params.mem_QC+'GB'
     tag { "multiqc"}
         
     input:

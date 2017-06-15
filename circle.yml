@@ -8,7 +8,7 @@ test:
   override:
     - |
       cd ~/RNAseq-nf
-      docker build -t iarcbioinfo/RNAseq-nf .
+      docker build -t iarcbioinfo/rnaseq-nf .
     - | #run help
       nextflow run ~/RNAseq-nf/RNAseq.nf --help
 deployment:

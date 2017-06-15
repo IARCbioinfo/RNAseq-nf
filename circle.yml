@@ -1,0 +1,18 @@
+machine:
+  services:
+    - docker
+  post:
+    - wget -qO- get.nextflow.io | bash ; chmod 755 nextflow ; sudo ln -s ~/nextflow /usr/local/bin/ ; sudo apt-get install graphviz
+    - git clone --depth=1 https://github.com/iarcbioinfo/data_test.git
+test:
+  override:
+    - |
+      cd ~/RNAseq-nf
+      docker build -t iarcbioinfo/RNAseq-nf .
+    - | #run help
+      nextflow run ~/RNAseq-nf/RNAseq.nf --help
+deployment:
+  git:
+    branch: [master, dev]
+    commands:
+      - chmod +x deploy.sh && ./deploy.sh

@@ -20,6 +20,7 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   git \
   wget \
   ca-certificates \
+  python3-dev \
   bzip2 && \
 
   # Install samtools specific version manually
@@ -30,7 +31,42 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   make install && \
   cd .. && \
   rm -rf samtools-1.3.1 samtools-1.3.1.tar.bz2 && \
-   
+
+  # FastQC
+  wget http://www.bioinformatics.babraham.ac.uk/projects/fastqc/fastqc_v0.11.5.zip && \
+  unzip fastqc_v0.11.5.zip && \
+  cp -r FastQC /usr/local/bin/. && \
+  ln -s /usr/local/bin/FastQC/fastqc /usr/local/bin/. && \
+
+  # cutadapt
+  pip install --user --upgrade cutadapt && \
+
+  # trim_galore
+  wget https://github.com/FelixKrueger/TrimGalore/archive/0.4.3.tar.gz && \
+  tar xvzf 0.4.3.tar.gz && \
+  mv 0.4.3/trim_galore /usr/bin && \
+  rm -rf 0.4.3 0.4.3.tar-gz && \
+
+  # hisat2
+
+  # htseq
+  pip install HTSeq
+
+  # multiqc
+  pip install multiqc
+
+  # Install STAR specific version manually
+  wget https://github.com/samtools/samtools/releases/download/1.3.1/samtools-1.3.1.tar.bz2 && \
+  tar -jxf samtools-1.3.1.tar.bz2 && \
+  cd samtools-1.3.1 && \
+  make && \
+  make install && \
+  cd .. && \
+  rm -rf samtools-1.3.1 samtools-1.3.1.tar.bz2 && \
+
+  #RSeQC
+  pip install RSeQC
+
   # Install samblaster specific version manually
   wget https://github.com/GregoryFaust/samblaster/releases/download/v.0.1.24/samblaster-v.0.1.24.tar.gz && \
   tar -xzf samblaster-v.0.1.24.tar.gz && \

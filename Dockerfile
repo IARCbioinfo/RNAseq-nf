@@ -21,7 +21,13 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   wget \
   ca-certificates \
   python3-dev \
+  python3-pip \
   bzip2 \
+  libbz2-dev \
+  liblzma-dev \
+  libcurl4-openssl-dev \
+  libfreetype6-dev \
+  libpng12-dev \
   unzip && \
 
   # Install samtools specific version manually
@@ -33,28 +39,30 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   cd .. && \
   rm -rf samtools-1.3.1 samtools-1.3.1.tar.bz2 && \
 
-  # FastQC
+  # Install FastQC
   wget http://www.bioinformatics.babraham.ac.uk/projects/fastqc/fastqc_v0.11.5.zip && \
   unzip fastqc_v0.11.5.zip && \
   cp -r FastQC /usr/local/bin/. && \
   ln -s /usr/local/bin/FastQC/fastqc /usr/local/bin/. && \
+  rm -rf fastqc_v0.11.5.zip FastQC && \
 
-  # cutadapt
-  pip install --user --upgrade cutadapt && \
+  # Install cutadapt
+  pip3 install --user --upgrade cutadapt && \
 
-  # trim_galore
+  # Install trim_galore
   wget https://github.com/FelixKrueger/TrimGalore/archive/0.4.3.tar.gz && \
   tar xvzf 0.4.3.tar.gz && \
   mv 0.4.3/trim_galore /usr/bin && \
   rm -rf 0.4.3 0.4.3.tar-gz && \
 
-  # hisat2
+  # Install hisat2
 
-  # htseq
-  pip install HTSeq
+  # Install htseq
+  pip3 install numpy
+  pip3 install HTSeq
 
-  # multiqc
-  pip install multiqc
+  # Install multiqc
+  pip3 install multiqc
 
   # Install STAR specific version manually
   wget https://github.com/samtools/samtools/releases/download/1.3.1/samtools-1.3.1.tar.bz2 && \
@@ -65,7 +73,7 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   cd .. && \
   rm -rf samtools-1.3.1 samtools-1.3.1.tar.bz2 && \
 
-  #RSeQC
+  # Install RSeQC
   pip install RSeQC
 
   # Install samblaster specific version manually
@@ -92,7 +100,8 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   git \
   wget \
   ca-certificates \
-  bzip2 && \
+  bzip2 \
+  unzip && \
 
   # Clean
   DEBIAN_FRONTEND=noninteractive apt-get autoremove -y && \

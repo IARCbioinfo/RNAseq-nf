@@ -29,7 +29,7 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   libfreetype6-dev \
   libpng12-dev \
   unzip && \
-  cp /usr/include/freetype2/* /usr/include/.
+  cp /usr/include/freetype2/*.h /usr/include/. \
 
   # Install samtools specific version manually
   wget https://github.com/samtools/samtools/releases/download/1.3.1/samtools-1.3.1.tar.bz2 && \
@@ -72,7 +72,7 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   rm -rf 2.5.3a.tar.gz STAR-2.5.3a && \
 
   # Install RSeQC
-  pip install RSeQC
+  pip install RSeQC && \
 
   # Install samblaster specific version manually
   wget https://github.com/GregoryFaust/samblaster/releases/download/v.0.1.24/samblaster-v.0.1.24.tar.gz && \

@@ -20,8 +20,8 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   git \
   wget \
   ca-certificates \
-  python3-dev \
-  python3-pip \
+  python-dev \
+  python-pip \
   bzip2 \
   libbz2-dev \
   liblzma-dev \
@@ -29,6 +29,7 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   libfreetype6-dev \
   libpng12-dev \
   unzip && \
+  cp /usr/include/freetype2/* /usr/include/.
 
   # Install samtools specific version manually
   wget https://github.com/samtools/samtools/releases/download/1.3.1/samtools-1.3.1.tar.bz2 && \
@@ -47,7 +48,7 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   rm -rf fastqc_v0.11.5.zip FastQC && \
 
   # Install cutadapt
-  pip3 install --user --upgrade cutadapt && \
+  pip install --user --upgrade cutadapt && \
 
   # Install trim_galore
   wget https://github.com/FelixKrueger/TrimGalore/archive/0.4.3.tar.gz && \
@@ -58,20 +59,17 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   # Install hisat2
 
   # Install htseq
-  pip3 install numpy && \
-  pip3 install HTSeq && \
+  pip install numpy && \
+  pip install HTSeq && \
 
   # Install multiqc
-  pip3 install multiqc && \
+  pip install multiqc && \
 
   # Install STAR specific version manually
-  wget https://github.com/samtools/samtools/releases/download/1.3.1/samtools-1.3.1.tar.bz2 && \
-  tar -jxf samtools-1.3.1.tar.bz2 && \
-  cd samtools-1.3.1 && \
-  make && \
-  make install && \
-  cd .. && \
-  rm -rf samtools-1.3.1 samtools-1.3.1.tar.bz2 && \
+  wget https://github.com/alexdobin/STAR/archive/2.5.3a.tar.gz && \
+  tar -xzf 2.5.3a.tar.gz && \
+  cp STAR-2.5.3a/bin/Linux_x86_64_static/STAR /usr/local/bin/. && \
+  rm -rf 2.5.3a.tar.gz STAR-2.5.3a && \
 
   # Install RSeQC
   pip install RSeQC

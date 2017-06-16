@@ -52,17 +52,17 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   # Install trim_galore
   wget https://github.com/FelixKrueger/TrimGalore/archive/0.4.3.tar.gz && \
   tar xvzf 0.4.3.tar.gz && \
-  mv 0.4.3/trim_galore /usr/bin && \
-  rm -rf 0.4.3 0.4.3.tar-gz && \
+  mv TrimGalore-0.4.3/trim_galore /usr/bin && \
+  rm -rf TrimGalore-0.4.3 0.4.3.tar.gz && \
 
   # Install hisat2
 
   # Install htseq
-  pip3 install numpy
-  pip3 install HTSeq
+  pip3 install numpy && \
+  pip3 install HTSeq && \
 
   # Install multiqc
-  pip3 install multiqc
+  pip3 install multiqc && \
 
   # Install STAR specific version manually
   wget https://github.com/samtools/samtools/releases/download/1.3.1/samtools-1.3.1.tar.bz2 && \

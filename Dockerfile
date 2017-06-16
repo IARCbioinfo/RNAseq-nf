@@ -21,7 +21,8 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   wget \
   ca-certificates \
   python3-dev \
-  bzip2 && \
+  bzip2 \
+  unzip && \
 
   # Install samtools specific version manually
   wget https://github.com/samtools/samtools/releases/download/1.3.1/samtools-1.3.1.tar.bz2 && \

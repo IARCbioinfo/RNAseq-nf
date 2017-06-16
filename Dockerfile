@@ -29,7 +29,7 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   libfreetype6-dev \
   libpng12-dev \
   unzip && \
-  cp /usr/include/freetype2/*.h /usr/include/. \
+  cp /usr/include/freetype2/*.h /usr/include/. && \
 
   # Install samtools specific version manually
   wget https://github.com/samtools/samtools/releases/download/1.3.1/samtools-1.3.1.tar.bz2 && \
@@ -98,6 +98,7 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   git \
   wget \
   ca-certificates \
+  python-pip \
   bzip2 \
   unzip && \
 

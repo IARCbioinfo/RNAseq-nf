@@ -15,6 +15,7 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
   make \
   g++ \
+  perl \
   default-jre \
   zlib1g-dev \
   libncurses5-dev \

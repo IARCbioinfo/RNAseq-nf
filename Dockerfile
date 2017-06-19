@@ -100,7 +100,6 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   libncurses5-dev \
   git \
   wget \
-  python-pip \
   bzip2 \
   unzip && \
 

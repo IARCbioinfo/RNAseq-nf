@@ -51,7 +51,7 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   rm -rf fastqc_v0.11.5.zip FastQC && \
 
   # Install cutadapt
-  pip install --user --upgrade cutadapt && \
+  pip install cutadapt && \
 
   # Install trim_galore
   wget https://github.com/FelixKrueger/TrimGalore/archive/0.4.3.tar.gz && \

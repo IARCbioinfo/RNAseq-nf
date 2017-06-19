@@ -44,7 +44,7 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   # Install FastQC
   wget http://www.bioinformatics.babraham.ac.uk/projects/fastqc/fastqc_v0.11.5.zip && \
   unzip fastqc_v0.11.5.zip && \
-  chmod 755 FastQC/fastqc
+  chmod 755 FastQC/fastqc && \
   cp -r FastQC /usr/local/bin/. && \
   ln -s /usr/local/bin/FastQC/fastqc /usr/local/bin/ && \
   rm -rf fastqc_v0.11.5.zip FastQC && \

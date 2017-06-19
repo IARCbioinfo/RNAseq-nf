@@ -12,7 +12,7 @@ test:
     - | #run help
       nextflow run ~/RNAseq-nf/RNAseq.nf --help
     - | #run simple test with docker
-      cd ~/data_test/ && nextflow run ~/RNAseq-nf/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --ref ~/data_test/REF/17_7572000-7591000.fasta --ref_folder  ~/data_test/REF/ --annot_gtf ~/data_test/REF/TP53_small.gtf --annot_gff ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag.png
+      cd ~/data_test/ && nextflow run ~/RNAseq-nf/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --ref ~/data_test/REF/17_7572000-7591000.fasta --ref_folder  ~/data_test/REF --annot_gtf ~/data_test/REF/TP53_small.gtf --annot_gff ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag.png
 deployment:
   git:
     branch: [master, dev]

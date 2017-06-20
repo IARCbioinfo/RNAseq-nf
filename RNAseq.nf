@@ -107,22 +107,34 @@ if (params.help) {
 }
 
 //read ref files
-if(params.hisat2==null){
-	ref_1  = file(params.ref_folder +'/chrStart.txt')
-	ref_2  = file(params.ref_folder +'/chrNameLength.txt')
-	ref_3  = file(params.ref_folder +'/chrName.txt')
-	ref_4  = file(params.ref_folder +'/chrLength.txt')
-	ref_5  = file(params.ref_folder +'/exonGeTrInfo.tab')
-	ref_6  = file(params.ref_folder +'/exonInfo.tab')
-	ref_7  = file(params.ref_folder +'/geneInfo.tab')
-	ref_8  = file(params.ref_folder +'/Genome')
-	ref_9  = file(params.ref_folder +'/genomeParameters.txt')
-	ref_10 = file(params.ref_folder +'/SA')
-	ref_11 = file(params.ref_folder +'/SAindex')
-	ref_12 = file(params.ref_folder +'/sjdbInfo.txt')
-	ref_13 = file(params.ref_folder +'/transcriptInfo.tab')
-	ref_14 = file(params.ref_folder +'/sjdbList.fromGTF.out.tab')
-	ref_15 = file(params.ref_folder +'/sjdbList.out.tab')
+
+if(params.hisat2){
+	ref_1  = file(params.hisat2_idx + '.1.ht2')
+	ref_2  = file(params.hisat2_idx + '.2.ht2')
+	ref_3  = file(params.hisat2_idx + '.3.ht2')
+	ref_4  = file(params.hisat2_idx + '.4.ht2')
+	ref_5  = file(params.hisat2_idx + '.5.ht2')
+	ref_6  = file(params.hisat2_idx + '.6.ht2')
+	ref_7  = file(params.hisat2_idx + '.7.ht2')
+	ref_8  = file(params.hisat2_idx + '.8.ht2')
+	ref    = ref_1.concat( ref_2,ref_3,ref_4,ref_5,ref_6,ref_7,ref_8)
+}else{
+	ref_1  = Channel.fromPath(params.ref_folder +'/chrStart.txt')
+	ref_2  = Channel.fromPath(params.ref_folder +'/chrNameLength.txt')
+	ref_3  = Channel.fromPath(params.ref_folder +'/chrName.txt')
+	ref_4  = Channel.fromPath(params.ref_folder +'/chrLength.txt')
+	ref_5  = Channel.fromPath(params.ref_folder +'/exonGeTrInfo.tab')
+	ref_6  = Channel.fromPath(params.ref_folder +'/exonInfo.tab')
+	ref_7  = Channel.fromPath(params.ref_folder +'/geneInfo.tab')
+	ref_8  = Channel.fromPath(params.ref_folder +'/Genome')
+	ref_9  = Channel.fromPath(params.ref_folder +'/genomeParameters.txt')
+	ref_10 = Channel.fromPath(params.ref_folder +'/SA')
+	ref_11 = Channel.fromPath(params.ref_folder +'/SAindex')
+	ref_12 = Channel.fromPath(params.ref_folder +'/sjdbInfo.txt')
+	ref_13 = Channel.fromPath(params.ref_folder +'/transcriptInfo.tab')
+	ref_14 = Channel.fromPath(params.ref_folder +'/sjdbList.fromGTF.out.tab')
+	ref_15 = Channel.fromPath(params.ref_folder +'/sjdbList.out.tab')
+	ref    = ref_1.concat( ref_2,ref_3,ref_4,ref_5,ref_6,ref_7,ref_8,ref_9,ref_10,ref_11,ref_12,ref_13,ref_14,ref_15)
 }
 
 annot_gtf = file(params.annot_gtf)
@@ -251,21 +263,7 @@ process alignment {
       input:
       val(file_tag) from filetag3
       file pairs5  from readPairs4
-      file ref_1
-      file ref_2
-      file ref_3
-      file ref_4
-      file ref_5
-      file ref_6
-      file ref_7
-      file ref_8
-      file ref_9
-      file ref_10
-      file ref_11
-      file ref_12
-      file ref_13
-      file ref_14
-      file ref_15
+      file ref from ref.collect()
       file annot_gtf
                   
       output:

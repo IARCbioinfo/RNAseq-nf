@@ -44,7 +44,7 @@ params.help         = null
 
 log.info ""
 log.info "--------------------------------------------------------"
-log.info "  RNAseq-nf 1.0.0: alignment, QC, and reads counting workflow for whole exome/whole genomeRNA sequencing "
+log.info "  RNAseq-nf 1.0.0: alignment, QC, and reads counting workflow for whole RNA sequencing "
 log.info "--------------------------------------------------------"
 log.info "Copyright (C) IARC/WHO"
 log.info "This program comes with ABSOLUTELY NO WARRANTY; for details see LICENSE"
@@ -90,7 +90,6 @@ if (params.help) {
   log.info "bed=${params.bed}"
   log.info "GATK_bundle=${params.GATK_bundle}"
   log.info "GATK_folder=${params.GATK_folder}"
-  log.info "indel_realignment=${params.indel_realignment}"
   log.info "recalibration=${params.recalibration}"
   log.info "help=${params.help}"
 }
@@ -175,6 +174,7 @@ process fastqc_pretrim {
 	file("${file_tag}${params.suffix2}_pretrim_fastqc.zip") into fastqc_pair2
 	file pairs into readPairs3
 	val(file_tag) into filetag2
+	publishDir params.output_folder, mode: 'copy', pattern: '{*fastqc.zip}'
 	
 	shell:
         file_tag = pairs[0].name.replace("${params.suffix1}.${params.fastq_ext}","")
@@ -201,7 +201,7 @@ process adapter_trimming {
 	    file("${file_tag}${params.suffix2}_val_2_fastqc.zip") into fastqc_postpair2
 	    file("${file_tag}*trimming_report.txt") into trimming_reports
 	    
-	    publishDir params.output_folder, mode: 'copy', pattern: '{*report.txt}'
+	    publishDir params.output_folder, mode: 'copy', pattern: '{*report.txt,*fastqc.zip}'
 	    
             shell:
             '''
@@ -389,8 +389,7 @@ process multiqc_pretrim {
     output:
     file("multiqc_pretrim_report.html") into multiqc_pre
     file("multiqc_pretrim_report_data") into multiqc_pre_data
-
-    publishDir params.output_folder, mode: 'copy', pattern: 'multiqc*'
+    publishDir params.output_folder, mode: 'copy'
 
     shell:
     '''
@@ -417,7 +416,7 @@ process multiqc_posttrim {
     file("multiqc_posttrim_report.html") into multiqc_post
     file("multiqc_posttrim_report_data") into multiqc_post_data
 
-    publishDir params.output_folder, mode: 'copy', pattern: 'multiqc*'
+    publishDir params.output_folder, mode: 'copy'
 
     shell:
     '''

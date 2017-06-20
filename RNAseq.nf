@@ -110,6 +110,8 @@ ref_12 = file(params.ref_folder +'/sjdbInfo.txt')
 ref_13 = file(params.ref_folder +'/transcriptInfo.tab')
 ref_14 = file(params.ref_folder +'/sjdbList.fromGTF.out.tab')
 ref_15 = file(params.ref_folder +'/sjdbList.out.tab')
+annot_gtf = file(params.annot_gtf)
+annot_gff = file(params.annot_gff)
 
 //read files
 mode = 'fastq'
@@ -250,6 +252,7 @@ process alignment {
       file ref_13
       file ref_14
       file ref_15
+      file annot_gtf
                   
       output:
       val(file_tag) into filetag5
@@ -273,7 +276,7 @@ process alignment {
 	    '''
       }else{
       '''
-      STAR --outSAMattrRGline ID:!{file_tag} SM:!{file_tag} !{params.RG} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{align_threads} --genomeDir . --sjdbGTFfile !{params.annot_gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+      STAR --outSAMattrRGline ID:!{file_tag} SM:!{file_tag} !{params.RG} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{align_threads} --genomeDir . --sjdbGTFfile !{annot_gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
       mv Log.final.out STAR.!{file_tag}.Log.final.out
       '''
       }
@@ -387,6 +390,8 @@ process quantification{
     	val(file_tag) from filetag7B
 	file bam from recal_bam_files4quant
     	file bai from recal_bai_files4quant
+	file annot_gff
+
     	output:
 	file("${file_tag}_count.txt") into htseq_files
     	publishDir params.output_folder, mode: 'copy'
@@ -396,15 +401,15 @@ process quantification{
 	if(params.htseq_maxreads) buffer='--max-reads-in-buffer '+params.htseq_maxreads+' '+'--additional-attr gene_name'
 	//check later if htseq 0.8 options --nonunique and --additional-attr are useful
     	'''
-	htseq-count -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{params.annot_gff} !{buffer} > !{file_tag}_count.txt 
+	htseq-count -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{annot_gff} !{buffer} > !{file_tag}_count.txt 
     	'''
 }
 
 //Transcript discovery 
-//stringtie !{file_tag}.bam -o !{file_tag}.gtf -p !{cpus} -G !{params.annot_gtf} -l !{file_tag} -C !{file_tag}_cov_refs.gtf
+//stringtie !{file_tag}.bam -o !{file_tag}.gtf -p !{cpus} -G !{annot_gtf} -l !{file_tag} -C !{file_tag}_cov_refs.gtf
 //ls *.gtf > mergelist.txt
-//stringtie --merge -p !{cpus} -G !{params.annot_gtf} -o stringtie_merged.gtf mergelist.txt
-//gffcompare -r !{params.annot_gtf} -G -o !{file_tag} !{file_tag}.gtf
+//stringtie --merge -p !{cpus} -G !{annot_gtf} -o stringtie_merged.gtf mergelist.txt
+//gffcompare -r !{annot_gtf} -G -o !{file_tag} !{file_tag}.gtf
 //stringtie -e -B -p !{cpus} -G stringtie_merged.gtf -o !{file_tag}_merged.gtf !{file_tag}.bam -A !{file_tag}_gene_abund.tab -B
 
 

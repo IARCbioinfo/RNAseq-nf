@@ -74,6 +74,12 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
   cp STAR-2.5.3a/bin/Linux_x86_64_static/STAR /usr/local/bin/. && \
   rm -rf 2.5.3a.tar.gz STAR-2.5.3a && \
 
+  # Install hisat2
+  wget ftp://ftp.ccb.jhu.edu/pub/infphilo/hisat2/downloads/hisat2-2.1.0-Linux_x86_64.zip && \
+  unzip hisat2-2.1.0-Linux_x86_64.zip && \
+  cp -r hisat2-2.1.0/. /usr/local/bin/. && \
+  rm -rf hisat2-2.1.0-Linux_x86_64.zip hisat2-2.1.0 && \
+
   # Install RSeQC
   pip install RSeQC && \
 

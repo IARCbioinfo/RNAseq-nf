@@ -38,6 +38,7 @@ params.hisat2_idx   = "genome_tran"
 params.sjtrim       = null
 params.recalibration = null
 params.hisat2       = null
+params.clustering   = null
 
 params.htseq_maxreads = null //default value of htseq-count is 30000000
 params.help         = null
@@ -430,7 +431,7 @@ process quantification{
 process multiqc_pretrim {
     cpus '1'
     memory params.mem_QC+'GB'
-    tag { "multiqc"}
+    tag { "all"}
         
     input:
     file fastqc1 from fastqc_pair1.collect()
@@ -449,10 +450,13 @@ process multiqc_pretrim {
 }
 
 
+if(params.clustering) htseq_files.into { htseq_files ; htseq_files4clust }
+
+
 process multiqc_posttrim {
     cpus '1'
     memory params.mem_QC+'GB'
-    tag { "multiqc"}
+    tag { "all"}
         
     input:
     file fastqcpost1 from fastqc_postpair1.collect()
@@ -473,4 +477,23 @@ process multiqc_posttrim {
     for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;
     multiqc . -n multiqc_posttrim_report.html -m fastqc -m cutadapt -m star -m rseqc -m htseq
     '''
+}
+
+if(params.clustering){
+   process clustering {
+    	cpus params.cpu
+	memory params.mem_QC+'G'
+    	tag { "all" }
+        
+    	input:
+	file htseq from htseq_files4clust.collect()
+	output:
+    	file("unsupervised_analysis") into unsup_res
+    	publishDir params.output_folder, mode: 'move'
+
+    	shell:
+    	'''
+	RNAseq_unsupervised.R -o unsupervised_analysis -n 500 -t vst -c hc -l complete
+    	'''
+   }
 }

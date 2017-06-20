@@ -3,7 +3,7 @@ machine:
     - docker
   post:
     - wget -qO- get.nextflow.io | bash ; chmod 755 nextflow ; sudo ln -s ~/nextflow /usr/local/bin/ ; sudo apt-get install graphviz
-    - git clone --depth=1 https://github.com/nalcala/data_test.git
+    - git clone https://github.com/iarcbioinfo/data_test.git
 test:
   override:
     - | # run docker build
@@ -14,7 +14,7 @@ test:
     - | #run STAR test
       cd ~/data_test/ && sudo nextflow run ~/RNAseq-nf/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --ref_folder  ~/data_test/REF --annot_gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag.png
     - | #run hisat2 test
-      cd ~/data_test/ && sudo nextflow run ~/RNAseq-nf/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --ref_folder  ~/data_test/REF --annot_gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag.png --hisat2 --hisat2_idx 17_7572000-7591000
+      cd ~/data_test/ && sudo nextflow run ~/RNAseq-nf/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --ref_folder  ~/data_test/REF --annot_gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag.png --hisat2 --hisat2_idx 17_7572000-7591000 
 deployment:
   git:
     branch: [master, dev]

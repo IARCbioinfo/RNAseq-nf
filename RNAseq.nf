@@ -109,14 +109,14 @@ if (params.help) {
 //read ref files
 
 if(params.hisat2){
-	ref_1  = file(params.hisat2_idx + '.1.ht2')
-	ref_2  = file(params.hisat2_idx + '.2.ht2')
-	ref_3  = file(params.hisat2_idx + '.3.ht2')
-	ref_4  = file(params.hisat2_idx + '.4.ht2')
-	ref_5  = file(params.hisat2_idx + '.5.ht2')
-	ref_6  = file(params.hisat2_idx + '.6.ht2')
-	ref_7  = file(params.hisat2_idx + '.7.ht2')
-	ref_8  = file(params.hisat2_idx + '.8.ht2')
+	ref_1  = Channel.fromPath(params.ref_folder + params.hisat2_idx + '.1.ht2')
+	ref_2  = Channel.fromPath(params.ref_folder + params.hisat2_idx + '.2.ht2')
+	ref_3  = Channel.fromPath(params.ref_folder + params.hisat2_idx + '.3.ht2')
+	ref_4  = Channel.fromPath(params.ref_folder + params.hisat2_idx + '.4.ht2')
+	ref_5  = Channel.fromPath(params.ref_folder + params.hisat2_idx + '.5.ht2')
+	ref_6  = Channel.fromPath(params.ref_folder + params.hisat2_idx + '.6.ht2')
+	ref_7  = Channel.fromPath(params.ref_folder + params.hisat2_idx + '.7.ht2')
+	ref_8  = Channel.fromPath(params.ref_folder + params.hisat2_idx + '.8.ht2')
 	ref    = ref_1.concat( ref_2,ref_3,ref_4,ref_5,ref_6,ref_7,ref_8)
 }else{
 	ref_1  = Channel.fromPath(params.ref_folder +'/chrStart.txt')

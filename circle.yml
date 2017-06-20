@@ -6,7 +6,7 @@ machine:
     - git clone --depth=1 https://github.com/nalcala/data_test.git
 test:
   override:
-    - |
+    - | # run docker build
       cd ~/RNAseq-nf
       docker build -t iarcbioinfo/rnaseq-nf .
     - | #run help

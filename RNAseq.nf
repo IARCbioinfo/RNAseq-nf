@@ -94,6 +94,22 @@ if (params.help) {
   log.info "help=${params.help}"
 }
 
+//read ref files
+ref_1  = file(params.ref_folder +'/chrStart.txt')
+ref_2  = file(params.ref_folder +'/chrNameLength.txt')
+ref_3  = file(params.ref_folder +'/chrName.txt')
+ref_4  = file(params.ref_folder +'/chrLength.txt')
+ref_5  = file(params.ref_folder +'/exonGeTrInfo.tab')
+ref_6  = file(params.ref_folder +'/exonInfo.tab')
+ref_7  = file(params.ref_folder +'/geneInfo.tab')
+ref_8  = file(params.ref_folder +'/Genome')
+ref_9  = file(params.ref_folder +'/genomeParameters.txt')
+ref_10 = file(params.ref_folder +'/SA')
+ref_11 = file(params.ref_folder +'/SAindex')
+ref_12 = file(params.ref_folder +'/sjdbInfo.txt')
+ref_13 = file(params.ref_folder +'/transcriptInfo.tab')
+ref_14 = file(params.ref_folder +'/sjdbList.fromGTF.out.tab')
+ref_15 = file(params.ref_folder +'/sjdbList.out.tab')
 
 //read files
 mode = 'fastq'
@@ -219,7 +235,22 @@ process alignment {
       input:
       val(file_tag) from filetag3
       file pairs5  from readPairs4
-            
+      file ref_1
+      file ref_2
+      file ref_3
+      file ref_4
+      file ref_5
+      file ref_6
+      file ref_7
+      file ref_8
+      file ref_9
+      file ref_10
+      file ref_11
+      file ref_12
+      file ref_13
+      file ref_14
+      file ref_15
+                  
       output:
       val(file_tag) into filetag5
       file("${file_tag}.bam") into bam_files
@@ -242,7 +273,7 @@ process alignment {
 	    '''
       }else{
       '''
-      STAR --outSAMattrRGline ID:!{file_tag} SM:!{file_tag} !{params.RG} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{align_threads} --genomeDir !{params.ref_folder} --sjdbGTFfile !{params.annot_gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+      STAR --outSAMattrRGline ID:!{file_tag} SM:!{file_tag} !{params.RG} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{align_threads} --genomeDir . --sjdbGTFfile !{params.annot_gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
       mv Log.final.out STAR.!{file_tag}.Log.final.out
       '''
       }

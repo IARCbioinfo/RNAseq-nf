@@ -33,6 +33,7 @@ params.GATK_bundle  = "GATK_bundle"
 params.bed          = "intervals.bed"
 params.RG           = "PL:ILLUMINA"
 params.stranded     = "no"
+params.order        = "pos"
 params.hisat2_idx   = "genome_tran"
 params.sjtrim       = null
 params.recalibration = null
@@ -81,6 +82,7 @@ if (params.help) {
     log.info '    --GATK_bundle        STRING                path to GATK bundle files (default : .)'
     log.info '    --GATK_folder        STRING                path to GATK GenomeAnalysisTK.jar file (default : .)'
     log.info '    --stranded        STRING                are reads stranded? (default : no; alternatives : yes, r)'
+    log.info '    --order        STRING                how to sort reads in bam  (default : pos; alternative: name)'
     log.info '    --hisat2_idx        STRING                hisat2 index file prefix (default : genome_tran)'
     log.info ""
     log.info "Flags:"
@@ -413,7 +415,7 @@ process quantification{
 	if(params.htseq_maxreads) buffer='--max-reads-in-buffer '+params.htseq_maxreads+' '+'--additional-attr gene_name'
 	//check later if htseq 0.8 options --nonunique and --additional-attr are useful
     	'''
-	htseq-count -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{annot_gtf} !{buffer} > !{file_tag}_count.txt 
+	htseq-count -r !{params.order} -s !{params.stranded} -f bam !{file_tag}.bam !{annot_gtf} !{buffer} > !{file_tag}_count.txt 
     	'''
 }
 

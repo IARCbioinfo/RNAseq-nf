@@ -28,7 +28,6 @@ params.ref_folder   = "ref"
 params.ref          = "ref.fa"
 params.output_folder   = "."
 params.annot_gtf    = "Homo_sapiens.GRCh38.79.gtf"
-params.annot_gff    = "Homo_sapiens.GRCh38.79.gff"
 params.GATK_folder  = "GATK"
 params.GATK_bundle  = "GATK_bundle"
 params.bed          = "intervals.bed"
@@ -38,6 +37,7 @@ params.hisat2_idx   = "genome_tran"
 params.sjtrim       = null
 params.recalibration = null
 params.hisat2       = null
+
 params.htseq_maxreads = null //default value of htseq-count is 30000000
 params.help         = null
 
@@ -62,19 +62,31 @@ if (params.help) {
     log.info 'nextflow run iarcbioinfo/RNAseq.nf [-with-docker] --input_folder input/ --ref_folder ref/ [OPTIONS]'
     log.info ''
     log.info 'Mandatory arguments:'
-    log.info '    --input_folder   FOLDER                  Folder containing BAM or fastq files to be aligned.'
+    log.info '--input_folder   FOLDER                  Folder containing BAM or fastq files to be aligned.'
+    log.info '--ref_folder          FOLDER                   Folder with genome reference files (with index).'
+    log.info '--output_folder     STRING                Output folder (default: results_alignment).'
+    log.info '--gtf          FILE                    Annotation file.'
     log.info ""
     log.info 'Optional arguments:'
+    log.info '--ref          FILE                    Reference fasta file (with index) for splice junction trimming and base recalibration.'
     log.info '    --cpu          INTEGER                 Number of cpu used by bwa mem and sambamba (default: 8).'
     log.info '    --mem          INTEGER                 Size of memory used for mapping (in GB) (default: 32).'
     log.info '    --mem_QC     INTEGER                 Size of memory used for QC and cutadapt (in GB) (default: 32).'
+    log.info '    --RG           STRING                  Samtools read group specification (default : PL:ILLUMINA).'
     log.info '    --fastq_ext        STRING                Extension of fastq files (default : fq.gz)'
     log.info '    --suffix1        STRING                Suffix of fastq files 1 (default : _1)'
     log.info '    --suffix2        STRING                Suffix of fastq files 2 (default : _2)'
     log.info '    --ref_folder     STRING                Folder with reference genome and STAR index (default: ref).'
-    log.info '    --output_folder     STRING                Output folder (default: results_RNAseq).'
+    log.info '    --bed        STRING                bed file with interval list'
+    log.info '    --GATK_bundle        STRING                path to GATK bundle files (default : .)'
+    log.info '    --GATK_folder        STRING                path to GATK GenomeAnalysisTK.jar file (default : .)'
+    log.info '    --stranded        STRING                are reads stranded? (default : no; alternatives : yes, r)'
+    log.info '    --hisat2_idx        STRING                hisat2 index file prefix (default : genome_tran)'
     log.info ""
     log.info "Flags:"
+    log.info '--sjtrim                    enable splice junction trimming'
+    log.info '--recalibration                    performs base quality score recalibration (GATK)'
+    log.info '--hisat2                    use hisat2 instead of STAR for reads mapping'
     log.info ''
     exit 0
 }else {
@@ -95,23 +107,25 @@ if (params.help) {
 }
 
 //read ref files
-ref_1  = file(params.ref_folder +'/chrStart.txt')
-ref_2  = file(params.ref_folder +'/chrNameLength.txt')
-ref_3  = file(params.ref_folder +'/chrName.txt')
-ref_4  = file(params.ref_folder +'/chrLength.txt')
-ref_5  = file(params.ref_folder +'/exonGeTrInfo.tab')
-ref_6  = file(params.ref_folder +'/exonInfo.tab')
-ref_7  = file(params.ref_folder +'/geneInfo.tab')
-ref_8  = file(params.ref_folder +'/Genome')
-ref_9  = file(params.ref_folder +'/genomeParameters.txt')
-ref_10 = file(params.ref_folder +'/SA')
-ref_11 = file(params.ref_folder +'/SAindex')
-ref_12 = file(params.ref_folder +'/sjdbInfo.txt')
-ref_13 = file(params.ref_folder +'/transcriptInfo.tab')
-ref_14 = file(params.ref_folder +'/sjdbList.fromGTF.out.tab')
-ref_15 = file(params.ref_folder +'/sjdbList.out.tab')
+if(params.hisat2==null){
+	ref_1  = file(params.ref_folder +'/chrStart.txt')
+	ref_2  = file(params.ref_folder +'/chrNameLength.txt')
+	ref_3  = file(params.ref_folder +'/chrName.txt')
+	ref_4  = file(params.ref_folder +'/chrLength.txt')
+	ref_5  = file(params.ref_folder +'/exonGeTrInfo.tab')
+	ref_6  = file(params.ref_folder +'/exonInfo.tab')
+	ref_7  = file(params.ref_folder +'/geneInfo.tab')
+	ref_8  = file(params.ref_folder +'/Genome')
+	ref_9  = file(params.ref_folder +'/genomeParameters.txt')
+	ref_10 = file(params.ref_folder +'/SA')
+	ref_11 = file(params.ref_folder +'/SAindex')
+	ref_12 = file(params.ref_folder +'/sjdbInfo.txt')
+	ref_13 = file(params.ref_folder +'/transcriptInfo.tab')
+	ref_14 = file(params.ref_folder +'/sjdbList.fromGTF.out.tab')
+	ref_15 = file(params.ref_folder +'/sjdbList.out.tab')
+}
+
 annot_gtf = file(params.annot_gtf)
-annot_gff = file(params.annot_gff)
 
 //read files
 mode = 'fastq'
@@ -390,7 +404,7 @@ process quantification{
     	val(file_tag) from filetag7B
 	file bam from recal_bam_files4quant
     	file bai from recal_bai_files4quant
-	file annot_gff
+	file annot_gtf
 
     	output:
 	file("${file_tag}_count.txt") into htseq_files
@@ -401,7 +415,7 @@ process quantification{
 	if(params.htseq_maxreads) buffer='--max-reads-in-buffer '+params.htseq_maxreads+' '+'--additional-attr gene_name'
 	//check later if htseq 0.8 options --nonunique and --additional-attr are useful
     	'''
-	htseq-count -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{annot_gff} !{buffer} > !{file_tag}_count.txt 
+	htseq-count -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{annot_gtf} !{buffer} > !{file_tag}_count.txt 
     	'''
 }
 

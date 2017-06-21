@@ -1,5 +1,5 @@
 #!/bin/bash
-cd ~/data_test/
+cd ~/RNAseq-nf/
 git config --global user.email "alcalan@fellows.iarc.fr"
 git add dag_STAR.png
 git add dag_hisat2.png

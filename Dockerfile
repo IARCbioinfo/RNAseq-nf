@@ -67,6 +67,7 @@ RUN	apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F76221572C52609D &&
 
   # Install htseq
   pip install numpy && \
+  pip install setuptools && \
   pip install HTSeq && \
 
   # Install multiqc

@@ -107,6 +107,17 @@ if (params.help) {
   log.info "GATK_folder=${params.GATK_folder}"
   log.info "recalibration=${params.recalibration}"
   log.info "help=${params.help}"
+  log.info "mem_QC=${params.mem_QC}"
+  log.info "ref_folder=${params.ref_folder}"
+  log.info "annot_gtf=${params.annot_gtf}"
+  log.info "RG=${params.RG}"
+  log.info "stranded=${params.stranded}"
+  log.info "order=${params.order}"
+  log.info "hisat2_idx=${params.hisat2_idx}"
+  log.info "sjtrim=${params.sjtrim}"
+  log.info "hisat2=${params.hisat2}"
+  log.info "clustering=${params.clustering}"
+  log.info "htseq_maxreads=${params.htseq_maxreads}"
 }
 
 //read ref files
@@ -121,6 +132,7 @@ if(params.hisat2){
 	ref_7  = Channel.fromPath(params.ref_folder + params.hisat2_idx + '.7.ht2')
 	ref_8  = Channel.fromPath(params.ref_folder + params.hisat2_idx + '.8.ht2')
 	ref    = ref_1.concat( ref_2,ref_3,ref_4,ref_5,ref_6,ref_7,ref_8)
+	println ref
 }else{
 	ref_1  = Channel.fromPath(params.ref_folder +'/chrStart.txt')
 	ref_2  = Channel.fromPath(params.ref_folder +'/chrNameLength.txt')
@@ -138,6 +150,7 @@ if(params.hisat2){
 	ref_14 = Channel.fromPath(params.ref_folder +'/sjdbList.fromGTF.out.tab')
 	ref_15 = Channel.fromPath(params.ref_folder +'/sjdbList.out.tab')
 	ref    = ref_1.concat( ref_2,ref_3,ref_4,ref_5,ref_6,ref_7,ref_8,ref_9,ref_10,ref_11,ref_12,ref_13,ref_14,ref_15)
+	println ref
 }
 
 annot_gtf = file(params.annot_gtf)

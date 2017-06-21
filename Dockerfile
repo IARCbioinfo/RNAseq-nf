@@ -9,6 +9,7 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
 	chmod 640 /var/cache/apt/archives/lock && \
 	apt-get update -y &&\
 	apt-get install -y gnupg2
+	
 RUN	apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F76221572C52609D && \
 	apt-get clean && \
 	apt-get update -y && \
@@ -32,7 +33,7 @@ RUN	apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F76221572C52609D &&
   liblzma-dev \
   libcurl4-openssl-dev \
   libfreetype6-dev \
-  libpng12-dev \
+  libpng-dev \
   unzip && \
   cp /usr/include/freetype2/*.h /usr/include/. && \
 

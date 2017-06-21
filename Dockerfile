@@ -23,6 +23,7 @@ RUN	apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F76221572C52609D &&
   default-jre \
   zlib1g-dev \
   libncurses5-dev \
+  libncurses5 \
   git \
   wget \
   ca-certificates \

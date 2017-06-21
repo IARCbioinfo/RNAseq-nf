@@ -13,7 +13,7 @@ RUN mkdir -p /var/cache/apt/archives/partial && \
 
   # Install dependences
   DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-  gnupg \
+  gnupg2 \
   make \
   g++ \
   perl \

@@ -12,9 +12,11 @@ test:
     - | #run help
       nextflow run ~/RNAseq-nf/RNAseq.nf --help
     - | #run STAR test
-      cd ~/data_test/ && sudo nextflow run ~/RNAseq-nf/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --ref_folder  ~/data_test/REF --annot_gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag.png
+      cd ~/data_test/ && sudo nextflow run ~/RNAseq-nf/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --ref_folder  ~/data_test/REF --annot_gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag_STAR.png
+      cd ~/data_test/ && sudo nextflow run ~/RNAseq-nf/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --ref_folder  ~/data_test/REF --annot_gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag_STAR.html
     - | #run hisat2 test
-      cd ~/data_test/ && sudo nextflow run ~/RNAseq-nf/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --ref_folder  ~/data_test/REF --annot_gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag.png --hisat2 --hisat2_idx 17_7572000-7591000 
+      cd ~/data_test/ && sudo nextflow run ~/RNAseq-nf/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --ref_folder  ~/data_test/REF --annot_gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag_hisat2.png --hisat2 --hisat2_idx 17_7572000-7591000
+      cd ~/data_test/ && sudo nextflow run ~/RNAseq-nf/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --ref_folder  ~/data_test/REF --annot_gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag_hisat2.html --hisat2 --hisat2_idx 17_7572000-7591000 
 deployment:
   git:
     branch: [master, dev]

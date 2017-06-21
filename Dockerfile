@@ -4,11 +4,10 @@ FROM debian:latest
 # File Author / Maintainer
 MAINTAINER **nalcala** <**alcalan@fellows.iarc.fr**>
 
-RUN apt-get update; apt-get install gnupg
-
 RUN mkdir -p /var/cache/apt/archives/partial && \
 	touch /var/cache/apt/archives/lock && \
 	chmod 640 /var/cache/apt/archives/lock && \
+	apt-get update; apt-get install gnupg && \
 	apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F76221572C52609D && \
 	apt-get clean && \
 	apt-get update -y && \

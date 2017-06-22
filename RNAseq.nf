@@ -83,7 +83,6 @@ if (params.help) {
     log.info '    --GATK_bundle        STRING                path to GATK bundle files (default : .)'
     log.info '    --GATK_folder        STRING                path to GATK GenomeAnalysisTK.jar file (default : .)'
     log.info '    --stranded        STRING                are reads stranded? (default : no; alternatives : yes, r)'
-    log.info '    --order        STRING                how to sort reads in bam  (default : pos; alternative: name)'
     log.info '    --hisat2_idx        STRING                hisat2 index file prefix (default : genome_tran)'
     log.info ""
     log.info "Flags:"
@@ -290,25 +289,30 @@ process alignment {
       if( (params.sjtrim == null)&(params.recalibration == null) ){
         publishDir params.output_folder, mode: 'copy'
       }else{
-	publishDir params.output_folder, mode: 'copy', pattern: "Log.final.out"
+	publishDir params.output_folder, mode: 'copy', pattern: "{Log.final.out,Chimeric}"
       }
             
       shell:
       align_threads = params.cpu.intdiv(2)
       sort_threads = params.cpu.intdiv(2) - 1
       sort_mem     = params.mem.intdiv(4)
-      
+
       if(params.hisat2){
             '''
-            hisat2 --rg-id !{file_tag} --rg SM:!{file_tag} --rg !{params.RG} --met-file hisat2.!{file_tag}.Log.final.out -p !{align_threads} -x !{params.hisat2_idx} -1 !{pairs5[0]} -2 !{pairs5[1]} | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+            hisat2 --rg-id !{file_tag} --rg SM:!{file_tag} --rg !{params.RG} --met-file hisat2.!{file_tag}.Log.final.out -p !{align_threads} -x !{params.hisat2_idx} -1 !{pairs5[0]} -2 !{pairs5[1]} | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
 	    '''
       }else{
       '''
-      STAR --outSAMattrRGline ID:!{file_tag} SM:!{file_tag} !{params.RG} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{align_threads} --genomeDir . --sjdbGTFfile !{annot_gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+      STAR --outSAMattrRGline ID:!{file_tag} SM:!{file_tag} !{params.RG} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{align_threads} --genomeDir . --sjdbGTFfile !{annot_gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outStd SAM | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
       mv Log.final.out STAR.!{file_tag}.Log.final.out
+      mv Chimeric.out.junction STAR.!{file_tag}.Chimeric.out.junction 
+      mv Chimeric.out.sam STAR.!{file_tag}.Chimeric.out.sam
       '''
       }
 }
+
+//STAR-Fusion --genome_lib_dir /path/to/your/CTAT_resource_lib -J Chimeric.out.junction --output_dir star_fusion_outdir
+//output: star-fusion.fusion_candidates.final.abridged
 
 //Splice junctions trimming
 if(params.sjtrim){
@@ -390,28 +394,34 @@ filetag7.into{ filetag7A; filetag7B }
 
 //RSEQC
 process RSEQC{
-    	cpus '1'
-	memory params.mem_QC+'GB'
-    	tag { file_tag }
+    		cpus '1'
+		memory params.mem_QC+'GB'
+    		tag { file_tag }
         
-    	input:
-    	val(file_tag) from filetag7A
-	file bam from recal_bam_files4QC
-    	file bai from recal_bai_files4QC
-    	output:
-	file("${file_tag}_readdist.txt") into rseqc_files
-    	publishDir params.output_folder, mode: 'copy'
+		input:
+    		val(file_tag) from filetag7A
+		file bam from recal_bam_files4QC
+    		file bai from recal_bai_files4QC
+    		output:
+		file("${file_tag}_readdist.txt") into rseqc_files
+    		publishDir params.output_folder, mode: 'copy'
 
-    	shell:
-    	'''
-	read_distribution.py -i !{file_tag}".bam" -r !{params.bed} > !{file_tag}"_readdist.txt"
-    	'''
+    		shell:
+    		'''
+		read_distribution.py -i !{file_tag}".bam" -r !{params.bed} > !{file_tag}"_readdist.txt"
+    		'''
 }
 
 //Quantification
 process quantification{
-    	cpus '1'
-	memory params.mem_QC+'GB'
+    	if(params.sjtrim){
+		cpus params.cpu
+		memory params.mem+'GB'
+	}else{
+		cpus '1'
+		memory params.mem_QC+'GB'
+	}
+	
     	tag { file_tag }
         
     	input:
@@ -428,9 +438,17 @@ process quantification{
 	buffer=''
 	if(params.htseq_maxreads) buffer='--max-reads-in-buffer '+params.htseq_maxreads+' '+'--additional-attr gene_name'
 	//check later if htseq 0.8 options --nonunique and --additional-attr are useful
-    	'''
-	htseq-count -r !{params.order} -s !{params.stranded} -f bam !{file_tag}.bam !{annot_gtf} !{buffer} > !{file_tag}_count.txt 
-    	'''
+	if(params.sjtrim){
+	'''
+	mv !{file_tag}.bam !{file_tag}_coordinate_sorted.bam
+	sambamba sort -n -t !{task.cpus} -m !{params.mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam !{file_tag}_coordinate_sorted.bam
+	htseq-count -r name -s !{params.stranded} -f bam !{file_tag}.bam !{annot_gtf} !{buffer} > !{file_tag}_count.txt 
+	'''
+	}else{
+	 	'''
+		htseq-count -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{annot_gtf} !{buffer} > !{file_tag}_count.txt 
+    		'''
+	}
 }
 
 //Transcript discovery 

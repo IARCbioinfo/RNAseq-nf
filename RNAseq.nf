@@ -285,7 +285,7 @@ process alignment {
       val(file_tag) into filetag5
       file("${file_tag}.bam") into bam_files
       file("${file_tag}.bam.bai") into bai_files
-      file("*.Log.final.out") into align_out
+      file("*.out.*") into align_out
       if( (params.sjtrim == null)&(params.recalibration == null) ){
         publishDir params.output_folder, mode: 'copy'
       }else{
@@ -370,7 +370,7 @@ if(params.recalibration){
     	file("${file_tag}_recalibration_plots.pdf") into recal_plots_files
     	file("${file_tag}.bam") into recal_bam_files
     	file("${file_tag}.bam.bai") into recal_bai_files
-    	publishDir params.output_folder, mode: 'move'
+    	publishDir params.output_folder, mode: 'copy'
 
     	shell:
     	'''

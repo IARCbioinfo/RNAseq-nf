@@ -28,7 +28,7 @@ params.ref_folder   = "ref"
 params.ref          = "ref.fa"
 params.output_folder   = "."
 params.annot_gtf    = "Homo_sapiens.GRCh38.79.gtf"
-params.GATK_folder  = "GATK"
+params.GATK_jar     = "GenomeAanlysisTK.jar"
 params.GATK_bundle  = "GATK_bundle"
 params.bed          = "intervals.bed"
 params.RG           = "PL:ILLUMINA"
@@ -81,7 +81,7 @@ if (params.help) {
     log.info '    --ref_folder     STRING                Folder with reference genome and STAR index (default: ref).'
     log.info '    --bed        STRING                bed file with interval list'
     log.info '    --GATK_bundle        STRING                path to GATK bundle files (default : .)'
-    log.info '    --GATK_folder        STRING                path to GATK GenomeAnalysisTK.jar file (default : .)'
+    log.info '    --GATK_jar        STRING                path to GATK GenomeAnalysisTK.jar file (default : .)'
     log.info '    --stranded        STRING                are reads stranded? (default : no; alternatives : yes, r)'
     log.info '    --hisat2_idx        STRING                hisat2 index file prefix (default : genome_tran)'
     log.info ""
@@ -103,7 +103,7 @@ if (params.help) {
   log.info "output_folder=${params.output_folder}"
   log.info "bed=${params.bed}"
   log.info "GATK_bundle=${params.GATK_bundle}"
-  log.info "GATK_folder=${params.GATK_folder}"
+  log.info "GATK_jar=${params.GATK_jar}"
   log.info "recalibration=${params.recalibration}"
   log.info "help=${params.help}"
   log.info "mem_QC=${params.mem_QC}"
@@ -316,12 +316,15 @@ process alignment {
 
 //Splice junctions trimming
 if(params.sjtrim){
+   GATK_jar=file(params.GATK_jar)
+   
    process splice_junct_trim {
       cpus params.cpu
       memory params.mem+'G'
       tag { file_tag }
       
       input:
+      file GATK_jar
       val(file_tag) from filetag5
       file bam  from bam_files
       file bai  from bai_files
@@ -336,7 +339,7 @@ if(params.sjtrim){
             
       shell:
       '''
-      java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T SplitNCigarReads -R !{params.ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
+      java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T SplitNCigarReads -R !{params.ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
       mv !{file_tag}_split.bai !{file_tag}_split.bam.bai
       '''
    }
@@ -349,6 +352,8 @@ if(params.sjtrim){
 
 //BQSrecalibration
 if(params.recalibration){
+   GATK_jar=file(params.GATK_jar)
+   
    process base_quality_score_recalibration {
     	cpus params.cpu
 	memory params.mem+'G'
@@ -375,10 +380,10 @@ if(params.recalibration){
     	knownSitescom=''
     	for ll in $indelsvcf; do knownSitescom=$knownSitescom' -knownSites '$ll; done
     	knownSitescom=$knownSitescom' -knownSites '$dbsnpvcf
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.ref} -I !{file_tag}.bam $knownSitescom -L !{params.bed} -o !{file_tag}_recal.table
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T BaseRecalibrator -nct !{params.cpu} -R !{params.ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{params.bed} -o !{file_tag}_post_recal.table		
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T AnalyzeCovariates -R !{params.ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{params.GATK_folder}/GenomeAnalysisTK.jar -T PrintReads -nct !{params.cpu} -R !{params.ref} -I !{file_tag}.bam -BQSR !{file_tag}_recal.table -L !{params.bed} -o !{file_tag}.bam
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T BaseRecalibrator -nct !{params.cpu} -R !{params.ref} -I !{file_tag}.bam $knownSitescom -L !{params.bed} -o !{file_tag}_recal.table
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T BaseRecalibrator -nct !{params.cpu} -R !{params.ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{params.bed} -o !{file_tag}_post_recal.table		
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T AnalyzeCovariates -R !{params.ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T PrintReads -nct !{params.cpu} -R !{params.ref} -I !{file_tag}.bam -BQSR !{file_tag}_recal.table -L !{params.bed} -o !{file_tag}.bam
     	mv !{file_tag}.bai !{file_tag}.bam.bai
     	'''
    }

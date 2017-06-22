@@ -22,7 +22,7 @@ test:
     - | #run hisat2 test
       cd ~/data_test/ && sudo nextflow run ~/RNAseq-nf/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --ref_folder  ~/data_test/REF --annot_gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag_hisat2.png --hisat2 --hisat2_idx 17_7572000-7591000
       cd ~/data_test/ && sudo nextflow run ~/RNAseq-nf/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --ref_folder  ~/data_test/REF --annot_gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag_hisat2.html --hisat2 --hisat2_idx 17_7572000-7591000
-      - | #run sjtrim with STAR test
+    - | #run sjtrim with STAR test
       cd ~/data_test/ && sudo nextflow run ~/RNAseq-nf/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --ref_folder  ~/data_test/REF --annot_gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 --sjtrim --GATK_folder ~/ -with-dag dag_STAR_sjtrim.png
       cd ~/data_test/ && sudo nextflow run ~/RNAseq-nf/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --ref_folder  ~/data_test/REF --annot_gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 --sjtrim --GATK_folder ~/ -with-dag dag_STAR_sjtrim.html
       mv dag* ~/RNAseq-nf/.

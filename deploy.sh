@@ -3,8 +3,10 @@ cd ~/RNAseq-nf/
 git config --global user.email "alcalan@fellows.iarc.fr"
 git add dag_STAR.png
 git add dag_hisat2.png
+git add dag_STAR_sjtrim.png
 git add dag_STAR.html
 git add dag_hisat2.html
+git add dag_STAR_sjtrim.html
 git commit -m "Generated DAG [skip ci]"
 git push origin $CIRCLE_BRANCH
 

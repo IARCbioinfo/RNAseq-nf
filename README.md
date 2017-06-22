@@ -141,7 +141,14 @@ nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --gendir ref_genome --su
           
 
 ## Directed Acyclic Graph
+
+### With default options
 [![DAG STAR](dag_STAR.png)](http://htmlpreview.github.io/?https://github.com/IARCbioinfo/RNAseq-nf/blob/dev/dag_STAR.html)
+
+### With option --sjtrim
+[![DAG STAR_sjtrim](dag_STAR_sjtrim.png)](http://htmlpreview.github.io/?https://github.com/IARCbioinfo/RNAseq-nf/blob/dev/dag_STAR_sjtrim.html)
+
+### With option --hisat2
 [![DAG hisat2](dag_hisat2.png)](http://htmlpreview.github.io/?https://github.com/IARCbioinfo/RNAseq-nf/blob/dev/dag_hisat2.html)
 
 

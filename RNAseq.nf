@@ -120,7 +120,6 @@ if (params.help) {
 }
 
 //read ref files
-
 if(params.hisat2){
 	ref_1  = Channel.fromPath(params.ref_folder + '/' + params.hisat2_idx + '.1.ht2')
 	ref_2  = Channel.fromPath(params.ref_folder + '/' + params.hisat2_idx + '.2.ht2')
@@ -315,6 +314,14 @@ process alignment {
 //STAR-Fusion --genome_lib_dir /path/to/your/CTAT_resource_lib -J Chimeric.out.junction --output_dir star_fusion_outdir
 //output: star-fusion.fusion_candidates.final.abridged
 
+if( (params.sjtrim!=null)|(params.recalibration!=null) ){
+    fasta_ref      = file(params.ref)
+    fasta_ref_fai  = file(params.ref + '.fai')
+    fasta_ref_dict = file(params.ref - ~/.fasta/  + '.dict')
+    println( params.ref - ~/.fasta/  + '.dict' )
+    println(fasta_ref_dict)
+}
+
 //Splice junctions trimming
 if(params.sjtrim){
    GATK_jar=file(params.GATK_jar)
@@ -325,6 +332,9 @@ if(params.sjtrim){
       tag { file_tag }
       
       input:
+      file fasta_ref
+      file fasta_ref_fai
+      file fasta_ref_dict
       file bam  from bam_files
       file GATK_jar
       val(file_tag) from filetag5
@@ -340,7 +350,7 @@ if(params.sjtrim){
             
       shell:
       '''
-      java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T SplitNCigarReads -R !{params.ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
+      java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T SplitNCigarReads -R !{fasta_ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
       mv !{file_tag}_split.bai !{file_tag}_split.bam.bai
       '''
    }
@@ -356,7 +366,6 @@ if(params.recalibration){
    GATK_jar     = file(params.GATK_jar)
    bundle_indel = file(params.GATK_bundle + '/*indels*.vcf')
    bundle_dbsnp = file(params.GATK_bundle + '/*dbsnp*.vcf')
-   fasta_ref    = file(params.ref)
 
    process base_quality_score_recalibration {
     	cpus params.cpu
@@ -364,7 +373,10 @@ if(params.recalibration){
     	tag { file_tag }
         
     	input:
-	file bed
+	file fasta_ref
+      	file fasta_ref_fai
+	file fasta_ref_dict
+      	file bed
     	file bundle_indel
 	file bundle_dbsnp
 	val(file_tag) from filetag6

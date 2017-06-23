@@ -441,17 +441,17 @@ process quantification{
 
     	shell:
 	buffer=''
-	if(params.htseq_maxreads) buffer='--max-reads-in-buffer '+params.htseq_maxreads+' '+'--additional-attr gene_name'
-	//check later if htseq 0.8 options --nonunique and --additional-attr are useful
+	if(params.htseq_maxreads) buffer='--max-reads-in-buffer '+params.htseq_maxreads
+	//check later if htseq 0.8 options --nonunique is useful
 	if(params.sjtrim){
 	'''
 	mv !{file_tag}.bam !{file_tag}_coordinate_sorted.bam
 	sambamba sort -n -t !{task.cpus} -m !{params.mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam !{file_tag}_coordinate_sorted.bam
-	htseq-count -r name -s !{params.stranded} -f bam !{file_tag}.bam !{annot_gtf} !{buffer} > !{file_tag}_count.txt 
+	htseq-count -r name -s !{params.stranded} -f bam !{file_tag}.bam !{annot_gtf} !{buffer} --additional-attr=gene_name > !{file_tag}_count.txt 
 	'''
 	}else{
 	 	'''
-		htseq-count -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{annot_gtf} !{buffer} > !{file_tag}_count.txt 
+		htseq-count -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{annot_gtf} !{buffer} --additional-attr=gene_name > !{file_tag}_count.txt 
     		'''
 	}
 }

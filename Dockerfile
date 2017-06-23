@@ -72,7 +72,7 @@ RUN	apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F76221572C52609D &&
   pip install HTSeq && \
 
   # Install multiqc
-  pip install multiqc && \
+  pip install --upgrade --force-reinstall git+https://github.com/nalcala/MultiQC.git && \
 
   # Install STAR specific version manually
   wget https://github.com/alexdobin/STAR/archive/2.5.3a.tar.gz && \

@@ -353,6 +353,8 @@ if(params.sjtrim){
 //BQSrecalibration
 if(params.recalibration){
    GATK_jar=file(params.GATK_jar)
+   bundle_indel=file(params.GATK_bundle + '/*indels*.vcf')
+   bundle_dbsnp=file(params.GATK_bundle + '/*dbsnp*.vcf')
    
    process base_quality_score_recalibration {
     	cpus params.cpu
@@ -363,6 +365,9 @@ if(params.recalibration){
     	val(file_tag) from filetag6
 	file bam from bam_files2
     	file bai from bai_files2
+	file bundle_indel
+	file bundle_dbsnp
+
     	output:
 	val(file_tag) into filetag7
     	file("${file_tag}_recal.table") into recal_table_files
@@ -374,8 +379,8 @@ if(params.recalibration){
 
     	shell:
     	'''
-    	indelsvcf=(`ls !{params.GATK_bundle}/*indels*.vcf* | grep -v ".tbi" | grep -v ".idx"`)
-    	dbsnpvcfs=(`ls !{params.GATK_bundle}/*dbsnp*.vcf* | grep -v ".tbi" | grep -v ".idx"`)
+    	indelsvcf=(`ls *indels*.vcf`)
+    	dbsnpvcfs=(`ls *dbsnp*.vcf`)
     	dbsnpvcf=${dbsnpvcfs[@]:(-1)}
     	knownSitescom=''
     	for ll in $indelsvcf; do knownSitescom=$knownSitescom' -knownSites '$ll; done

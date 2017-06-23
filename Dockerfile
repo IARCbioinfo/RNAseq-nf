@@ -1,5 +1,5 @@
 # Set the base image to Debian
-FROM debian:stretch
+FROM debian:9.0
 
 # File Author / Maintainer
 MAINTAINER **nalcala** <**alcalan@fellows.iarc.fr**>

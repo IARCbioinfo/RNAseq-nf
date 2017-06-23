@@ -285,7 +285,7 @@ process alignment {
       val(file_tag) into filetag5
       file("${file_tag}.bam") into bam_files
       file("${file_tag}.bam.bai") into bai_files
-      file("*.out.*") into align_out
+      file("*.out*") into align_out
       if( (params.sjtrim == null)&(params.recalibration == null) ){
         publishDir params.output_folder, mode: 'copy'
       }else{

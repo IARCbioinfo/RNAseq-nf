@@ -362,12 +362,12 @@ if(params.recalibration){
     	tag { file_tag }
         
     	input:
-    	val(file_tag) from filetag6
+    	file bundle_indel
+	file bundle_dbsnp
+	val(file_tag) from filetag6
 	file bam from bam_files2
     	file bai from bai_files2
-	file bundle_indel
-	file bundle_dbsnp
-
+	
     	output:
 	val(file_tag) into filetag7
     	file("${file_tag}_recal.table") into recal_table_files

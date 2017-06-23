@@ -28,7 +28,7 @@ params.ref_folder   = "ref"
 params.ref          = "ref.fa"
 params.output_folder   = "."
 params.annot_gtf    = "Homo_sapiens.GRCh38.79.gtf"
-params.GATK_jar     = "GenomeAanlysisTK.jar"
+params.GATK_jar     = "GenomeAnalysisTK.jar"
 params.GATK_bundle  = "GATK_bundle"
 params.bed          = "intervals.bed"
 params.RG           = "PL:ILLUMINA"
@@ -153,6 +153,7 @@ if(params.hisat2){
 }
 
 annot_gtf = file(params.annot_gtf)
+bed       = file(params.bed)
 
 //read files
 mode = 'fastq'
@@ -324,9 +325,9 @@ if(params.sjtrim){
       tag { file_tag }
       
       input:
+      file bam  from bam_files
       file GATK_jar
       val(file_tag) from filetag5
-      file bam  from bam_files
       file bai  from bai_files
             
       output:
@@ -352,16 +353,18 @@ if(params.sjtrim){
 
 //BQSrecalibration
 if(params.recalibration){
-   GATK_jar=file(params.GATK_jar)
-   bundle_indel=file(params.GATK_bundle + '/*indels*.vcf')
-   bundle_dbsnp=file(params.GATK_bundle + '/*dbsnp*.vcf')
-   
+   GATK_jar     = file(params.GATK_jar)
+   bundle_indel = file(params.GATK_bundle + '/*indels*.vcf')
+   bundle_dbsnp = file(params.GATK_bundle + '/*dbsnp*.vcf')
+   fasta_ref    = file(params.ref)
+
    process base_quality_score_recalibration {
     	cpus params.cpu
 	memory params.mem+'G'
     	tag { file_tag }
         
     	input:
+	file bed
     	file bundle_indel
 	file bundle_dbsnp
 	val(file_tag) from filetag6
@@ -385,10 +388,10 @@ if(params.recalibration){
     	knownSitescom=''
     	for ll in $indelsvcf; do knownSitescom=$knownSitescom' -knownSites '$ll; done
     	knownSitescom=$knownSitescom' -knownSites '$dbsnpvcf
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T BaseRecalibrator -nct !{params.cpu} -R !{params.ref} -I !{file_tag}.bam $knownSitescom -L !{params.bed} -o !{file_tag}_recal.table
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T BaseRecalibrator -nct !{params.cpu} -R !{params.ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{params.bed} -o !{file_tag}_post_recal.table		
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T AnalyzeCovariates -R !{params.ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T PrintReads -nct !{params.cpu} -R !{params.ref} -I !{file_tag}.bam -BQSR !{file_tag}_recal.table -L !{params.bed} -o !{file_tag}.bam
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T BaseRecalibrator -filterRNC -nct !{params.cpu} -R !{fasta_ref} -I !{file_tag}.bam $knownSitescom -L !{bed} -o !{file_tag}_recal.table
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T BaseRecalibrator -filterRNC -nct !{params.cpu} -R !{fasta_ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{bed} -o !{file_tag}_post_recal.table		
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T AnalyzeCovariates -R !{fasta_ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T PrintReads -filterRNC -nct !{params.cpu} -R !{fasta_ref} -I !{file_tag}.bam -BQSR !{file_tag}_recal.table -L !{bed} -o !{file_tag}.bam
     	mv !{file_tag}.bai !{file_tag}.bam.bai
     	'''
    }
@@ -409,16 +412,18 @@ process RSEQC{
     		tag { file_tag }
         
 		input:
+		file bed
     		val(file_tag) from filetag7A
 		file bam from recal_bam_files4QC
     		file bai from recal_bai_files4QC
+		
     		output:
 		file("${file_tag}_readdist.txt") into rseqc_files
     		publishDir params.output_folder, mode: 'copy'
 
     		shell:
     		'''
-		read_distribution.py -i !{file_tag}".bam" -r !{params.bed} > !{file_tag}"_readdist.txt"
+		read_distribution.py -i !{file_tag}".bam" -r !{bed} > !{file_tag}"_readdist.txt"
     		'''
 }
 

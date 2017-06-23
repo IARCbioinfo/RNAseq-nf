@@ -104,8 +104,6 @@ if (params.help) {
   log.info "bed=${params.bed}"
   log.info "GATK_bundle=${params.GATK_bundle}"
   log.info "GATK_jar=${params.GATK_jar}"
-  log.info "recalibration=${params.recalibration}"
-  log.info "help=${params.help}"
   log.info "mem_QC=${params.mem_QC}"
   log.info "ref_folder=${params.ref_folder}"
   log.info "annot_gtf=${params.annot_gtf}"
@@ -117,6 +115,8 @@ if (params.help) {
   log.info "hisat2=${params.hisat2}"
   log.info "clustering=${params.clustering}"
   log.info "htseq_maxreads=${params.htseq_maxreads}"
+  log.info "recalibration=${params.recalibration}"
+  log.info "help=${params.help}"
 }
 
 //read ref files
@@ -286,7 +286,7 @@ process alignment {
       file("${file_tag}.bam") into bam_files
       file("${file_tag}.bam.bai") into bai_files
       file("*.out*") into align_out
-      if( (params.sjtrim == null)&(params.recalibration == null) ){
+      if( (params.sjtrim == null)&&(params.recalibration == null) ){
         publishDir params.output_folder, mode: 'copy'
       }else{
 	publishDir params.output_folder, mode: 'copy', pattern: "{Log.final.out,Chimeric}"
@@ -314,12 +314,10 @@ process alignment {
 //STAR-Fusion --genome_lib_dir /path/to/your/CTAT_resource_lib -J Chimeric.out.junction --output_dir star_fusion_outdir
 //output: star-fusion.fusion_candidates.final.abridged
 
-if( (params.sjtrim!=null)|(params.recalibration!=null) ){
+if( (params.sjtrim!=null)||(params.recalibration!=null) ){
     fasta_ref      = file(params.ref)
     fasta_ref_fai  = file(params.ref + '.fai')
     fasta_ref_dict = file(params.ref - ~/.fasta/  + '.dict')
-    println( params.ref - ~/.fasta/  + '.dict' )
-    println(fasta_ref_dict)
 }
 
 //Splice junctions trimming

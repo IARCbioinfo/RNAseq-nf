@@ -289,7 +289,7 @@ process alignment {
       if( (params.sjtrim == null)&&(params.recalibration == null) ){
         publishDir params.output_folder, mode: 'copy'
       }else{
-	publishDir params.output_folder, mode: 'copy', pattern: "{Log.final.out,Chimeric}"
+	publishDir params.output_folder, mode: 'copy', pattern: "out"
       }
             
       shell:

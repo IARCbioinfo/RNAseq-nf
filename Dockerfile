@@ -35,9 +35,15 @@ RUN	apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F76221572C52609D &&
   libcurl4-openssl-dev \
   libfreetype6-dev \
   libpng-dev \
-  unzip && \
+  unzip \
+  r-base-core \
+  r-cran-ggplot2 \
+  r-cran-gplots \
+  r-cran-reshape && \
   cp /usr/include/freetype2/*.h /usr/include/. && \
 
+  Rscript -e 'install.packages("gsalib",repos="http://cran.us.r-project.org")' && \
+  
   # Install samtools specific version manually
   wget https://github.com/samtools/samtools/releases/download/1.3.1/samtools-1.3.1.tar.bz2 && \
   tar -jxf samtools-1.3.1.tar.bz2 && \

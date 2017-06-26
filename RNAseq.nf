@@ -46,7 +46,7 @@ params.help         = null
 
 log.info ""
 log.info "--------------------------------------------------------"
-log.info "  RNAseq-nf 1.0.0: alignment, QC, and reads counting workflow for whole RNA sequencing "
+log.info "  RNAseq-nf 1.0.0: alignment, QC, and reads counting workflow for RNA sequencing "
 log.info "--------------------------------------------------------"
 log.info "Copyright (C) IARC/WHO"
 log.info "This program comes with ABSOLUTELY NO WARRANTY; for details see LICENSE"
@@ -130,7 +130,6 @@ if(params.hisat2){
 	ref_7  = Channel.fromPath(params.ref_folder + '/' + params.hisat2_idx + '.7.ht2')
 	ref_8  = Channel.fromPath(params.ref_folder + '/' + params.hisat2_idx + '.8.ht2')
 	ref    = ref_1.concat( ref_2,ref_3,ref_4,ref_5,ref_6,ref_7,ref_8)
-	println ref
 }else{
 	ref_1  = Channel.fromPath(params.ref_folder +'/chrStart.txt')
 	ref_2  = Channel.fromPath(params.ref_folder +'/chrNameLength.txt')
@@ -148,7 +147,6 @@ if(params.hisat2){
 	ref_14 = Channel.fromPath(params.ref_folder +'/sjdbList.fromGTF.out.tab')
 	ref_15 = Channel.fromPath(params.ref_folder +'/sjdbList.out.tab')
 	ref    = ref_1.concat( ref_2,ref_3,ref_4,ref_5,ref_6,ref_7,ref_8,ref_9,ref_10,ref_11,ref_12,ref_13,ref_14,ref_15)
-	println ref
 }
 
 annot_gtf = file(params.annot_gtf)
@@ -349,10 +347,8 @@ if(params.sjtrim){
 //BQSrecalibration
 if(params.recalibration){
    GATK_jar     = file(params.GATK_jar)
-   //bundle_indel = file( params.GATK_bundle + '/*indels*.vcf')
    bundle_indel = Channel.fromPath(params.GATK_bundle + '/*indels*.vcf')
    bundle_dbsnp = Channel.fromPath(params.GATK_bundle + '/*dbsnp*.vcf')
-   println(bundle_indel)
 
    process base_quality_score_recalibration {
     	cpus params.cpu
@@ -365,6 +361,7 @@ if(params.recalibration){
       	file fasta_ref_fai
 	file fasta_ref_dict
       	file bed
+	file GATK_jar
     	file indel from bundle_indel.collect()
 	file dbsnp from bundle_dbsnp.collect()
 	

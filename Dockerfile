@@ -36,7 +36,7 @@ RUN	apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F76221572C52609D &&
   libfreetype6-dev \
   libpng-dev \
   unzip \
-  r-base-core \
+  r-base \
   r-cran-ggplot2 \
   r-cran-gplots \
   r-cran-reshape && \

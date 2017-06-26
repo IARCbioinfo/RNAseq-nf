@@ -439,6 +439,7 @@ process quantification{
 	//check later if htseq 0.8 options --nonunique is useful
 	if(params.sjtrim){
 	'''
+	htseq-count -h
 	mv !{file_tag}.bam !{file_tag}_coordinate_sorted.bam
 	sambamba sort -n -t !{task.cpus} -m !{params.mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam !{file_tag}_coordinate_sorted.bam
 	htseq-count -r name -s !{params.stranded} -f bam !{file_tag}.bam !{annot_gtf} !{buffer} --additional-attr=gene_name > !{file_tag}_count.txt 

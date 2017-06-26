@@ -176,7 +176,6 @@ if(mode=='bam'){
         file infile from files
      
         output:
-	val(file_tag)
 	set file("${file_tag}_1.fq.gz"), file("${file_tag}_2.fq.gz")  into readPairs
 
         shell:
@@ -229,12 +228,11 @@ process fastqc_pretrim {
         file pairs from readPairs
 	
         output:
-	file("${file_tag}${params.suffix1}_pretrim_fastqc.zip") into fastqc_pair1
-	file("${file_tag}${params.suffix2}_pretrim_fastqc.zip") into fastqc_pair2
-	file pairs into readPairs3
-	val(file_tag) into filetag2
-	publishDir params.output_folder, mode: 'copy', pattern: '{*fastqc.zip}'
+	set file("${file_tag}${params.suffix1}_pretrim_fastqc.zip"), file("${file_tag}${params.suffix2}_pretrim_fastqc.zip") into fastqc_pairs
+	set val(file_tag), file(pairs) into readPairs3
 	
+	publishDir params.output_folder, mode: 'copy', pattern: '{*fastqc.zip}'
+
 	shell:
         file_tag = pairs[0].name.replace("${params.suffix1}.${params.fastq_ext}","")
         '''
@@ -251,13 +249,11 @@ process adapter_trimming {
             tag { file_tag }
 	    
             input:
-	    val(file_tag) from filetag2
-	    file pairs3 from readPairs3
+	    set val(file_tag), file(pairs3) from readPairs3
+	    
             output:
-            val(file_tag) into filetag3
-	    file("${file_tag}*val*.fq.gz") into readPairs4
-	    file("${file_tag}${params.suffix1}_val_1_fastqc.zip") into fastqc_postpair1
-	    file("${file_tag}${params.suffix2}_val_2_fastqc.zip") into fastqc_postpair2
+            set val(file_tag), file("${file_tag}*val*.fq.gz") into readPairs4
+	    set file("${file_tag}${params.suffix1}_val_1_fastqc.zip"), file("${file_tag}${params.suffix2}_val_2_fastqc.zip") into fastqc_postpairs
 	    file("${file_tag}*trimming_report.txt") into trimming_reports
 	    
 	    publishDir params.output_folder, mode: 'copy', pattern: '{*report.txt,*fastqc.zip}'
@@ -276,15 +272,12 @@ process alignment {
       tag { file_tag }
       
       input:
-      val(file_tag) from filetag3
-      file pairs5  from readPairs4
+      set val(file_tag), file(pairs5)  from readPairs4
       file ref from ref.collect()
       file annot_gtf
                   
       output:
-      val(file_tag) into filetag5
-      file("${file_tag}.bam") into bam_files
-      file("${file_tag}.bam.bai") into bai_files
+      set val(file_tag), file("${file_tag}.bam"), file("${file_tag}.bam.bai") into bam_files
       file("*.out*") into align_out
       if( (params.sjtrim == null)&&(params.recalibration == null) ){
         publishDir params.output_folder, mode: 'copy'
@@ -330,18 +323,14 @@ if(params.sjtrim){
       tag { file_tag }
       
       input:
+      set val(file_tag), file(bam), file(bai)  from bam_files
       file fasta_ref
       file fasta_ref_fai
-      file fasta_ref_dict
-      file bam  from bam_files
+      file fasta_ref_dict     
       file GATK_jar
-      val(file_tag) from filetag5
-      file bai  from bai_files
             
       output:
-      val("${file_tag}_split") into filetag6
-      file("${file_tag}_split.bam") into bam_files2
-      file("${file_tag}_split.bam.bai") into bai_files2
+      set val("${file_tag}_split"), file("${file_tag}_split.bam"), file("${file_tag}_split.bam.bai") into bam_files2
       if(params.recalibration == null){
         publishDir params.output_folder, mode: 'copy'
       }
@@ -353,17 +342,17 @@ if(params.sjtrim){
       '''
    }
 }else{
-      filetag6=filetag5
       bam_files2=bam_files
-      bai_files2=bai_files
 }
 
 
 //BQSrecalibration
 if(params.recalibration){
    GATK_jar     = file(params.GATK_jar)
-   bundle_indel = file(params.GATK_bundle + '/*indels*.vcf')
-   bundle_dbsnp = file(params.GATK_bundle + '/*dbsnp*.vcf')
+   //bundle_indel = file( params.GATK_bundle + '/*indels*.vcf')
+   bundle_indel = Channel.fromPath(params.GATK_bundle + '/*indels*.vcf')
+   bundle_dbsnp = Channel.fromPath(params.GATK_bundle + '/*dbsnp*.vcf')
+   println(bundle_indel)
 
    process base_quality_score_recalibration {
     	cpus params.cpu
@@ -371,23 +360,19 @@ if(params.recalibration){
     	tag { file_tag }
         
     	input:
+	set val(file_tag), file(bam), file(bai) from bam_files2
 	file fasta_ref
       	file fasta_ref_fai
 	file fasta_ref_dict
       	file bed
-    	file bundle_indel
-	file bundle_dbsnp
-	val(file_tag) from filetag6
-	file bam from bam_files2
-    	file bai from bai_files2
+    	file indel from bundle_indel.collect()
+	file dbsnp from bundle_dbsnp.collect()
 	
     	output:
-	val(file_tag) into filetag7
+	set val(file_tag), file("${file_tag}.bam"), file("${file_tag}.bam.bai") into recal_bam_files
     	file("${file_tag}_recal.table") into recal_table_files
     	file("${file_tag}_post_recal.table") into recal_table_post_files
     	file("${file_tag}_recalibration_plots.pdf") into recal_plots_files
-    	file("${file_tag}.bam") into recal_bam_files
-    	file("${file_tag}.bam.bai") into recal_bai_files
     	publishDir params.output_folder, mode: 'copy'
 
     	shell:
@@ -396,8 +381,8 @@ if(params.recalibration){
     	dbsnpvcfs=(`ls *dbsnp*.vcf`)
     	dbsnpvcf=${dbsnpvcfs[@]:(-1)}
     	knownSitescom=''
-    	for ll in $indelsvcf; do knownSitescom=$knownSitescom' -knownSites '$ll; done
-    	knownSitescom=$knownSitescom' -knownSites '$dbsnpvcf
+    	for ll in $indelsvcf; do knownSitescom=$knownSitescom' -knownSites:VCF '$ll; done
+    	knownSitescom=$knownSitescom' -knownSites:VCF '$dbsnpvcf
     	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T BaseRecalibrator -filterRNC -nct !{params.cpu} -R !{fasta_ref} -I !{file_tag}.bam $knownSitescom -L !{bed} -o !{file_tag}_recal.table
     	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T BaseRecalibrator -filterRNC -nct !{params.cpu} -R !{fasta_ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{bed} -o !{file_tag}_post_recal.table		
     	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T AnalyzeCovariates -R !{fasta_ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
@@ -406,14 +391,10 @@ if(params.recalibration){
     	'''
    }
 }else{      
-      filetag7=filetag6
       recal_bam_files=bam_files2
-      recal_bai_files=bai_files2
 }
 
 recal_bam_files.into { recal_bam_files4QC; recal_bam_files4quant }
-recal_bai_files.into { recal_bai_files4QC; recal_bai_files4quant }
-filetag7.into{ filetag7A; filetag7B }
 
 //RSEQC
 process RSEQC{
@@ -422,10 +403,8 @@ process RSEQC{
     		tag { file_tag }
         
 		input:
+    		set val(file_tag), file(bam), file(bai) from recal_bam_files4QC
 		file bed
-    		val(file_tag) from filetag7A
-		file bam from recal_bam_files4QC
-    		file bai from recal_bai_files4QC
 		
     		output:
 		file("${file_tag}_readdist.txt") into rseqc_files
@@ -450,9 +429,7 @@ process quantification{
     	tag { file_tag }
         
     	input:
-    	val(file_tag) from filetag7B
-	file bam from recal_bam_files4quant
-    	file bai from recal_bai_files4quant
+    	set val(file_tag), file(bam), file(bai) from recal_bam_files4quant
 	file annot_gtf
 
     	output:
@@ -490,8 +467,7 @@ process multiqc_pretrim {
     tag { "all"}
         
     input:
-    file fastqc1 from fastqc_pair1.collect()
-    file fastqc2 from fastqc_pair2.collect()
+    file fastqc1 from fastqc_pairs.collect()
         
     output:
     file("multiqc_pretrim_report.html") into multiqc_pre
@@ -515,8 +491,7 @@ process multiqc_posttrim {
     tag { "all"}
         
     input:
-    file fastqcpost1 from fastqc_postpair1.collect()
-    file fastqcpost2 from fastqc_postpair2.collect()
+    file fastqcpost1 from fastqc_postpairs.collect()
     file STAR from align_out.collect()
     file htseq from htseq_files.collect()
     file rseqc from rseqc_files.collect()

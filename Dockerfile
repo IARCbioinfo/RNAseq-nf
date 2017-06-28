@@ -114,12 +114,11 @@ RUN	apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F76221572C52609D &&
   DEBIAN_FRONTEND=noninteractive apt-get remove -y \
   make \
   g++ \
-  zlib1g-dev \
-  libncurses5-dev \
-  git \
   wget \
   bzip2 \
-  unzip && \
+  git \
+  zlib1g-dev \
+  libncurses5-dev && \
 
   # Clean
   DEBIAN_FRONTEND=noninteractive apt-get autoremove -y && \

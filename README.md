@@ -59,15 +59,13 @@ java -jar picard.jar CreateSequenceDictionary R= ref.fa O= ref.dict
 
 ## Parameters
 
-* #### Madatory
+* #### Mandatory
 | Name | Example value | Description |
 |-----------|--------------:|-------------| 
-| --help | null | print usage and optional parameters |
 | --input_folder | . | input folder |
-|--output_folder |   . | output folder |
-|--gendir | ref | reference genome folder |
+|--ref_folder | ref | reference genome folder |
 |--annot_gtf   |  Homo_sapiens.GRCh38.79.gtf | annotation GTF file |
-|--gene_bed   |  gene.bed | bed file with genes for RESeQC | 
+|--bed   |  gene.bed | bed file with genes for RESeQC | 
 
 * #### Optional
 
@@ -80,10 +78,9 @@ java -jar picard.jar CreateSequenceDictionary R= ref.fa O= ref.dict
 |--suffix1      | \_1 | suffix for second element of read files pair|
 |--suffix2      | \_2 | suffix for second element of read files pair|
 |--output_folder   | . | output folder for aligned BAMs|
-|--fasta_ref |    ref.fa | reference genome fasta file for GATK |
-|--GATK_folder |  GATK | folder with jar file GenomeAnalysisTK.jar |
+|--ref |    ref.fa | reference genome fasta file for GATK |
+|--GATK_jar |  GenomeAnalysisTK.jar | path to jar file GenomeAnalysisTK.jar |
 |--GATK_bundle |  GATK_bundle | folder with files for BQSR |
-|--intervals   |  intervals.bed | bed file with intervals for BQSR | 
 |--RG          |  PL:ILLUMINA | string to be added to read group information in BAM file |
 |--stranded   |  no | Strand information for counting with htseq [no, yes, reverse] | 
 |--hisat2_idx   |  genome_tran | index filename prefix for hisat2 | 
@@ -93,32 +90,32 @@ java -jar picard.jar CreateSequenceDictionary R= ref.fa O= ref.dict
 | Name  | Description |
 |-----------|-------------| 
 | --help | print usage and optional parameters |
-|--sjtrim      |  false | enable reads trimming at splice junctions | 
-|--bqsr        |  false | enable base quality score recalibration |
-|--hisat2   |  false | use hisat2 instead of STAR for mapping | 
+|--sjtrim   | enable reads trimming at splice junctions | 
+|--hisat2   | use hisat2 instead of STAR for mapping | 
 |--recalibration  | perform quality score recalibration (GATK)|
+|--clustering  | perform unsupervised analyses of read counts data|
 
 
 ## Usage
 To run the pipeline on a series of paired-end fastq files (with suffixes *_1* and *_2*) in folder *fastq*, and a reference genome with indexes in folder *ref_genome*, one can type:
 ```bash
-nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --gendir ref_genome --suffix1 _1 --suffix2 _2
+nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --ref_folder ref_genome --suffix1 _1 --suffix2 _2
 ``` 
 ### Use hisat2 for mapping
-To use the reads trimming at splice junctions step, you must add the ***--hisat2* option**, specify the path to the folder containing the hisat2 index files, as well as satisfy the requirements above mentionned. For example:
+To use hisat2 instead of STAR for the reads mapping, you must add the ***--hisat2* option**, specify the path to the folder containing the hisat2 index files, as well as satisfy the requirements above mentionned. For example:
 ```bash
 nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --suffix1 _1 --suffix2 _2 --hisat2 --hisat2_idx /home/user/reference/genome_tran 
 ```
 ### Enable reads trimming at splice junctions
 To use the reads trimming at splice junctions step, you must add the ***--sjtrim* option**, specify the path to the folder containing the GenomeAnalysisTK jar file, as well as satisfy the requirements above mentionned. For example:
 ```bash
-nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --gendir ref_genome --suffix1 _1 --suffix2 _2 --sjtrim --GATK_folder /home/user/GATK 
+nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --ref_folder ref_genome --suffix1 _1 --suffix2 _2 --sjtrim --GATK_jar /home/user/GATK/GenomeAnalysisTK.jar
 ```
 
 ### Enable Base Quality Score Recalibration
 To use the base quality score recalibration step, you must add the ***--bqsr* option**, specify the path to the folder containing the GenomeAnalysisTK jar file, the path to the GATK bundle folder for your reference genome, specify the path to the bed file with intervals to be considered, as well as satisfy the requirements above mentionned. For example:
 ```bash
-nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --gendir ref_genome --suffix1 _1 --suffix2 _2 --bqsr --GATK_folder /home/user/GATK --GATK_bundle /home/user/GATKbundle --intervals intervals.bed
+nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --ref_folder ref_genome --suffix1 _1 --suffix2 _2 --recalibration --GATK_jar /home/user/GATK/GenomeAnalysisTK.jar --GATK_bundle /home/user/GATKbundle --bed intervals.bed
 ```
 
 ## Output 
@@ -157,6 +154,7 @@ nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --gendir ref_genome --su
   | Name      | Email | Description     |
   |-----------|---------------|-----------------| 
   | Nicolas Alcala*    | AlcalaN@fellows.iarc.fr    | Developer to contact for support |
+  | Noemie Leblay | LeblayN@students.iarc.fr | Tester |
   | Alexis Robitaille | RobitailleA@students.iarc.fr | Tester |
   
 

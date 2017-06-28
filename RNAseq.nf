@@ -17,24 +17,25 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-params.input_folder = '.'
-params.cpu          = 8
+params.input_folder  = "."
+params.ref_folder   = "ref"
+params.annot_gtf    = "Homo_sapiens.GRCh38.79.gtf"
+params.bed          = "gene.bed"
+
+params.cpu          = 4
 params.mem          = 50
 params.mem_QC       = 2
 params.fastq_ext    = "fq.gz"
 params.suffix1      = "_1"
 params.suffix2      = "_2"
-params.ref_folder   = "ref"
+params.output_folder = "."
 params.ref          = "ref.fa"
-params.output_folder   = "."
-params.annot_gtf    = "Homo_sapiens.GRCh38.79.gtf"
 params.GATK_jar     = "GenomeAnalysisTK.jar"
 params.GATK_bundle  = "GATK_bundle"
-params.bed          = "intervals.bed"
 params.RG           = "PL:ILLUMINA"
 params.stranded     = "no"
-params.order        = "pos"
 params.hisat2_idx   = "genome_tran"
+
 params.sjtrim       = null
 params.recalibration = null
 params.hisat2       = null
@@ -66,11 +67,13 @@ if (params.help) {
     log.info 'Mandatory arguments:'
     log.info '--input_folder   FOLDER                  Folder containing BAM or fastq files to be aligned.'
     log.info '--ref_folder          FOLDER                   Folder with genome reference files (with index).'
-    log.info '--output_folder     STRING                Output folder (default: results_alignment).'
     log.info '--gtf          FILE                    Annotation file.'
+    log.info '    --bed        STRING                bed file with interval list'
+    log.info '    --ref_folder     STRING                Folder with reference genome and STAR index (default: ref).'
     log.info ""
     log.info 'Optional arguments:'
     log.info '--ref          FILE                    Reference fasta file (with index) for splice junction trimming and base recalibration.'
+    log.info '--output_folder     STRING                Output folder (default: results_alignment).'
     log.info '    --cpu          INTEGER                 Number of cpu used by bwa mem and sambamba (default: 8).'
     log.info '    --mem          INTEGER                 Size of memory used for mapping (in GB) (default: 32).'
     log.info '    --mem_QC     INTEGER                 Size of memory used for QC and cutadapt (in GB) (default: 32).'
@@ -78,8 +81,6 @@ if (params.help) {
     log.info '    --fastq_ext        STRING                Extension of fastq files (default : fq.gz)'
     log.info '    --suffix1        STRING                Suffix of fastq files 1 (default : _1)'
     log.info '    --suffix2        STRING                Suffix of fastq files 2 (default : _2)'
-    log.info '    --ref_folder     STRING                Folder with reference genome and STAR index (default: ref).'
-    log.info '    --bed        STRING                bed file with interval list'
     log.info '    --GATK_bundle        STRING                path to GATK bundle files (default : .)'
     log.info '    --GATK_jar        STRING                path to GATK GenomeAnalysisTK.jar file (default : .)'
     log.info '    --stranded        STRING                are reads stranded? (default : no; alternatives : yes, r)'
@@ -89,6 +90,7 @@ if (params.help) {
     log.info '--sjtrim                    enable splice junction trimming'
     log.info '--recalibration                    performs base quality score recalibration (GATK)'
     log.info '--hisat2                    use hisat2 instead of STAR for reads mapping'
+    log.info '--clustering                    perform unsupervised analysis of read counts'
     log.info ''
     exit 0
 }else {
@@ -109,13 +111,13 @@ if (params.help) {
   log.info "annot_gtf=${params.annot_gtf}"
   log.info "RG=${params.RG}"
   log.info "stranded=${params.stranded}"
-  log.info "order=${params.order}"
   log.info "hisat2_idx=${params.hisat2_idx}"
   log.info "sjtrim=${params.sjtrim}"
   log.info "hisat2=${params.hisat2}"
   log.info "clustering=${params.clustering}"
   log.info "htseq_maxreads=${params.htseq_maxreads}"
   log.info "recalibration=${params.recalibration}"
+  log.info "clustering=${params.clustering}"
   log.info "help=${params.help}"
 }
 

@@ -283,7 +283,7 @@ process alignment {
       	publishDir params.output_folder, saveAs: { it == "*out*" ? "QC/$it" : "BAM/$it" }
         //publishDir params.output_folder, mode: 'copy'
       }else{
-	publishDir "!{params.output_folder}/QC", mode: 'copy', pattern: "out"
+	publishDir "${params.output_folder}/QC", mode: 'copy', pattern: "out"
       }
             
       shell:
@@ -301,6 +301,10 @@ process alignment {
       mv Log.final.out STAR.!{file_tag}.Log.final.out
       mv Chimeric.out.junction STAR.!{file_tag}.Chimeric.out.junction 
       mv Chimeric.out.sam STAR.!{file_tag}.Chimeric.out.sam
+      mv SJ.out.tab STAR.!{file_tag}.SJ.out.tab
+      mv Log.out STAR.!{file_tag}.Log.out
+      mv Log.progress.out    STAR.!{file_tag}.Log.progress.out
+      mv Log.std.out STAR.!{file_tag}.Log.std.out
       '''
       }
 }

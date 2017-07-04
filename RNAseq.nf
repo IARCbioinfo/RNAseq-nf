@@ -280,8 +280,12 @@ process alignment {
       set val(file_tag), file("${file_tag}.bam"), file("${file_tag}.bam.bai") into bam_files
       file("*.out*") into align_out
       if( (params.sjtrim == null)&&(params.recalibration == null) ){
-      	publishDir params.output_folder, saveAs: { it == "*out*" ? "QC/$it" : "BAM/$it" }
-        //publishDir params.output_folder, mode: 'copy'
+      	publishDir params.output_folder, mode: 'copy', saveAs: {filename ->
+                 if (filename.indexOf(".bam") > 0)                      "BAM/$filename"
+            else if (filename.indexOf("SJ") > 0)              "BAM/$filename"
+            else if (filename.indexOf("out") > 0)             "QC/$filename"
+            else "$filename"
+        }
       }else{
 	publishDir "${params.output_folder}/QC", mode: 'copy', pattern: "out"
       }

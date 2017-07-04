@@ -231,7 +231,7 @@ process fastqc_pretrim {
 	set file("${file_tag}${params.suffix1}_pretrim_fastqc.zip"), file("${file_tag}${params.suffix2}_pretrim_fastqc.zip") into fastqc_pairs
 	set val(file_tag), file(pairs) into readPairs3
 	
-	publishDir params.output_folder, mode: 'copy', pattern: '{*fastqc.zip}'
+	publishDir "${params.output_folder}/QC", mode: 'copy', pattern: '{*fastqc.zip}'
 
 	shell:
         file_tag = pairs[0].name.replace("${params.suffix1}.${params.fastq_ext}","")
@@ -256,7 +256,7 @@ process adapter_trimming {
 	    set file("${file_tag}${params.suffix1}_val_1_fastqc.zip"), file("${file_tag}${params.suffix2}_val_2_fastqc.zip") into fastqc_postpairs
 	    file("${file_tag}*trimming_report.txt") into trimming_reports
 	    
-	    publishDir params.output_folder, mode: 'copy', pattern: '{*report.txt,*fastqc.zip}'
+	    publishDir "${params.output_folder}/QC", mode: 'copy', pattern: '{*report.txt,*fastqc.zip}'
 	    
             shell:
             '''
@@ -280,9 +280,10 @@ process alignment {
       set val(file_tag), file("${file_tag}.bam"), file("${file_tag}.bam.bai") into bam_files
       file("*.out*") into align_out
       if( (params.sjtrim == null)&&(params.recalibration == null) ){
-        publishDir params.output_folder, mode: 'copy'
+      	publishDir params.output_folder, saveAs: { it == "*out*" ? "QC/$it" : "BAM/$it" }
+        //publishDir params.output_folder, mode: 'copy'
       }else{
-	publishDir params.output_folder, mode: 'copy', pattern: "out"
+	publishDir "!{params.output_folder}/QC", mode: 'copy', pattern: "out"
       }
             
       shell:
@@ -308,9 +309,10 @@ process alignment {
 //output: star-fusion.fusion_candidates.final.abridged
 
 if( (params.sjtrim!=null)||(params.recalibration!=null) ){
-    fasta_ref      = file(params.ref)
-    fasta_ref_fai  = file(params.ref + '.fai')
-    fasta_ref_dict = file(params.ref - ~/.fasta/  + '.dict')
+    fasta_ref       = file(params.ref)
+    fasta_ref_fai   = file(params.ref + '.fai')
+    fasta_ref_dictn = params.ref[0..<params.ref.lastIndexOf('.')]
+    fasta_ref_dict  = file(fasta_ref_dictn  + '.dict')
 }
 
 //Splice junctions trimming
@@ -330,15 +332,16 @@ if(params.sjtrim){
       file GATK_jar
             
       output:
-      set val("${file_tag}_split"), file("${file_tag}_split.bam"), file("${file_tag}_split.bam.bai") into bam_files2
+      set val(file_tag_new), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into bam_files2
       if(params.recalibration == null){
-        publishDir params.output_folder, mode: 'copy'
+        publishDir "${params.output_folder}/BAM", mode: 'copy'
       }
             
       shell:
+      file_tag_new = file_tag+'_split'
       '''
-      java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T SplitNCigarReads -R !{fasta_ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
-      mv !{file_tag}_split.bai !{file_tag}_split.bam.bai
+      java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T SplitNCigarReads -R !{fasta_ref} -I !{bam} -o !{file_tag_new}.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
+      mv !{file_tag_new}.bai !{file_tag_new}.bam.bai
       '''
    }
 }else{
@@ -368,13 +371,14 @@ if(params.recalibration){
 	file dbsnp from bundle_dbsnp.collect()
 	
     	output:
-	set val(file_tag), file("${file_tag}.bam"), file("${file_tag}.bam.bai") into recal_bam_files
+	set val(file_tag_new), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into recal_bam_files
     	file("${file_tag}_recal.table") into recal_table_files
     	file("${file_tag}_post_recal.table") into recal_table_post_files
     	file("${file_tag}_recalibration_plots.pdf") into recal_plots_files
-    	publishDir params.output_folder, mode: 'copy'
+    	publishDir "${params.output_folder}/BAM", mode: 'copy'
 
     	shell:
+	file_tag_new = file_tag+'_recal'
     	'''
     	indelsvcf=(`ls *indels*.vcf`)
     	dbsnpvcfs=(`ls *dbsnp*.vcf`)
@@ -385,8 +389,8 @@ if(params.recalibration){
     	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T BaseRecalibrator -filterRNC -nct !{params.cpu} -R !{fasta_ref} -I !{file_tag}.bam $knownSitescom -L !{bed} -o !{file_tag}_recal.table
     	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T BaseRecalibrator -filterRNC -nct !{params.cpu} -R !{fasta_ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{bed} -o !{file_tag}_post_recal.table		
     	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T AnalyzeCovariates -R !{fasta_ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T PrintReads -filterRNC -nct !{params.cpu} -R !{fasta_ref} -I !{file_tag}.bam -BQSR !{file_tag}_recal.table -L !{bed} -o !{file_tag}.bam
-    	mv !{file_tag}.bai !{file_tag}.bam.bai
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T PrintReads -filterRNC -nct !{params.cpu} -R !{fasta_ref} -I !{file_tag}.bam -BQSR !{file_tag_new}.table -L !{bed} -o !{file_tag_new}.bam
+    	mv !{file_tag_new}.bai !{file_tag_new}.bam.bai
     	'''
    }
 }else{      
@@ -407,7 +411,7 @@ process RSEQC{
 		
     		output:
 		file("${file_tag}_readdist.txt") into rseqc_files
-    		publishDir params.output_folder, mode: 'copy'
+    		publishDir "${params.output_folder}/QC", mode: 'copy'
 
     		shell:
     		'''
@@ -472,7 +476,7 @@ process multiqc_pretrim {
     output:
     file("multiqc_pretrim_report.html") into multiqc_pre
     file("multiqc_pretrim_report_data") into multiqc_pre_data
-    publishDir params.output_folder, mode: 'copy'
+    publishDir "${params.output_folder}/QC", mode: 'copy'
 
     shell:
     '''
@@ -501,7 +505,7 @@ process multiqc_posttrim {
     file("multiqc_posttrim_report.html") into multiqc_post
     file("multiqc_posttrim_report_data") into multiqc_post_data
 
-    publishDir params.output_folder, mode: 'copy'
+    publishDir "${params.output_folder}/QC", mode: 'copy'
 
     shell:
     '''
@@ -520,7 +524,8 @@ if(params.clustering){
 	file htseq from htseq_files4clust.collect()
 	output:
     	file("unsupervised_analysis") into unsup_res
-    	publishDir params.output_folder, mode: 'move'
+
+	publishDir params.output_folder, mode: 'move'
 
     	shell:
     	'''

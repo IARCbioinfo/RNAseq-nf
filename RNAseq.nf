@@ -231,7 +231,7 @@ process fastqc_pretrim {
 	set file("${file_tag}${params.suffix1}_pretrim_fastqc.zip"), file("${file_tag}${params.suffix2}_pretrim_fastqc.zip") into fastqc_pairs
 	set val(file_tag), file(pairs) into readPairs3
 	
-	publishDir "${params.output_folder}/QC", mode: 'copy', pattern: '{*fastqc.zip}'
+	publishDir "${params.output_folder}/QC/fastq", mode: 'copy', pattern: '{*fastqc.zip}'
 
 	shell:
         file_tag = pairs[0].name.replace("${params.suffix1}.${params.fastq_ext}","")
@@ -256,7 +256,7 @@ process adapter_trimming {
 	    set file("${file_tag}${params.suffix1}_val_1_fastqc.zip"), file("${file_tag}${params.suffix2}_val_2_fastqc.zip") into fastqc_postpairs
 	    file("${file_tag}*trimming_report.txt") into trimming_reports
 	    
-	    publishDir "${params.output_folder}/QC", mode: 'copy', pattern: '{*report.txt,*fastqc.zip}'
+	    publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: '{*report.txt,*fastqc.zip}'
 	    
             shell:
             '''
@@ -283,11 +283,14 @@ process alignment {
       	publishDir params.output_folder, mode: 'copy', saveAs: {filename ->
                  if (filename.indexOf(".bam") > 0)                      "BAM/$filename"
             else if (filename.indexOf("SJ") > 0)              "BAM/$filename"
-            else if (filename.indexOf("out") > 0)             "QC/$filename"
-            else "$filename"
+            else if (filename.indexOf("out") > 0)             "QC/alignment/$filename"
         }
       }else{
-	publishDir "${params.output_folder}/QC", mode: 'copy', pattern: "out"
+	publishDir params.output_folder, mode: 'copy', saveAs: {filename ->
+            if (filename.indexOf("SJ") > 0)              "BAM/$filename"
+	    else if (filename.indexOf("Chimeric") > 0)             "BAM/$filename"
+            else if (filename.indexOf("Log") > 0)             "QC/alignment/$filename"
+        }
       }
             
       shell:
@@ -342,7 +345,7 @@ if(params.sjtrim){
       output:
       set val(file_tag_new), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into bam_files2
       if(params.recalibration == null){
-        publishDir "${params.output_folder}/BAM", mode: 'copy'
+        publishDir "${params.output_folder}/BAM/sjtrim", mode: 'copy'
       }
             
       shell:
@@ -383,7 +386,10 @@ if(params.recalibration){
     	file("${file_tag}_recal.table") into recal_table_files
     	file("${file_tag}_post_recal.table") into recal_table_post_files
     	file("${file_tag}_recalibration_plots.pdf") into recal_plots_files
-    	publishDir "${params.output_folder}/BAM", mode: 'copy'
+    	publishDir params.output_folder, mode: 'copy', saveAs: {filename ->
+                 if (filename.indexOf(".bam") > 0)                      "BAM/$filename"
+            else "QC/BQSR/$filename"
+        }
 
     	shell:
 	file_tag_new = file_tag+'_recal'
@@ -419,7 +425,7 @@ process RSEQC{
 		
     		output:
 		file("${file_tag}_readdist.txt") into rseqc_files
-    		publishDir "${params.output_folder}/QC", mode: 'copy'
+    		publishDir "${params.output_folder}/QC/bam", mode: 'copy'
 
     		shell:
     		'''
@@ -445,7 +451,7 @@ process quantification{
 
     	output:
 	file("${file_tag}_count.txt") into htseq_files
-    	publishDir params.output_folder, mode: 'copy'
+    	publishDir "${params.output_folder}/counts", mode: 'copy'
 
     	shell:
 	buffer=''

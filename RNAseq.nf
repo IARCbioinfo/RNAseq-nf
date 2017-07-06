@@ -89,7 +89,7 @@ if (params.help) {
     log.info '    --stranded        STRING                are reads stranded? (default : no; alternatives : yes, r)'
     log.info '    --hisat2_idx        STRING                hisat2 index file prefix (default : genome_tran)'
     log.info '    --clustering_n        INTEGER               number of genes to use for clustering  (default : 500)'
-    log.info '    --clustering_t        STRING                count transformation method; 'rld', 'vst', or 'auto' (default : vst)'
+    log.info '    --clustering_t        STRING                count transformation method; rld, vst, or auto (default : vst)'
     log.info '    --clustering_c        STRING                clustering algorithm to be passed to ConsensusClusterPlus (default : hc)'
     log.info '    --clustering_l        STRING                method for hierarchical clustering to be passed to ConsensusClusterPlus (default : complete)'
     log.info ''

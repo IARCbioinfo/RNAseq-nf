@@ -480,7 +480,7 @@ process quantification{
 	buffer=''
 	if(params.htseq_maxreads) buffer='--max-reads-in-buffer '+params.htseq_maxreads
 	
-	if(params.sjtrim){
+	if( (params.sjtrim)||(params.recalibration) ){
 	'''
 	htseq-count -h
 	mv !{file_tag}.bam !{file_tag}_coordinate_sorted.bam

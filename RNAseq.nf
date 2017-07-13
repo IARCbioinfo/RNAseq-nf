@@ -132,7 +132,7 @@ params.help         = null
   log.info "mem_QC       = ${params.mem_QC}"
   log.info "ref_folder   = ${params.ref_folder}"
   log.info "starfusion_folder = ${params.starfusion_folder}"
-  log.info "gtf    = ${params.gtf}"
+  log.info "gtf          = ${params.gtf}"
   log.info "RG           = ${params.RG}"
   log.info "stranded     = ${params.stranded}"
   log.info "hisat2_idx   = ${params.hisat2_idx}"
@@ -376,9 +376,13 @@ process fusion {
             
       shell:
       '''
-      ln -s !{gtf} ref_annot.gtf
-      ln -s !{fasta_ref} ref_genome.fa
-      ln -s !{fasta_ref_fai} ref_genome.fa.fai
+      if [ ! -f ref_annot.gtf ]; then
+	 ln -s !{gtf} ref_annot.gtf
+      fi
+      if [ ! -f ref_genome.fa ]; then
+	 ln -s !{fasta_ref} ref_genome.fa
+      	 ln -s !{fasta_ref_fai} ref_genome.fa.fai
+      fi
       STAR-Fusion --genome_lib_dir . -J !{SJ} --left_fq !{pairs[0]} --right_fq !{pairs[1]} --output_dir star_fusion_!{file_tag} 
       '''
    }

@@ -17,10 +17,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-params.input_folder  = "."
-params.ref_folder   = "ref"
-params.annot_gtf    = "Homo_sapiens.GRCh38.79.gtf"
-params.bed          = "gene.bed"
+params.input_folder = null
+params.ref_folder   = null
+params.starfusion_folder = null
+params.gtf          = null
+params.bed          = null
 
 params.cpu          = 4
 params.mem          = 50
@@ -28,20 +29,24 @@ params.mem_QC       = 2
 params.fastq_ext    = "fq.gz"
 params.suffix1      = "_1"
 params.suffix2      = "_2"
-params.output_folder = "."
+params.output_folder= "."
 params.ref          = "ref.fa"
 params.GATK_jar     = "GenomeAnalysisTK.jar"
 params.GATK_bundle  = "GATK_bundle"
 params.RG           = "PL:ILLUMINA"
 params.stranded     = "no"
 params.hisat2_idx   = "genome_tran"
+params.clustering_n = 500 
+params.clustering_t = "vst"
+params.clustering_c = "hc"
+params.clustering_l = "complete"
 
 params.sjtrim       = null
-params.recalibration = null
+params.recalibration= null
 params.hisat2       = null
 params.clustering   = null
 
-params.htseq_maxreads = null //default value of htseq-count is 30000000
+params.htseq_maxreads= null //default value of htseq-count is 30000000
 params.help         = null
 
 
@@ -65,15 +70,15 @@ if (params.help) {
     log.info 'nextflow run iarcbioinfo/RNAseq.nf [-with-docker] --input_folder input/ --ref_folder ref/ [OPTIONS]'
     log.info ''
     log.info 'Mandatory arguments:'
-    log.info '--input_folder   FOLDER                  Folder containing BAM or fastq files to be aligned.'
-    log.info '--ref_folder          FOLDER                   Folder with genome reference files (with index).'
-    log.info '--gtf          FILE                    Annotation file.'
+    log.info '    --input_folder   FOLDER                  Folder containing BAM or fastq files to be aligned.'
+    log.info '    --ref_folder          FOLDER                   Folder with genome reference files (with index).'
+    log.info '    --starfusion_folder          FOLDER                   Folder with STAR-Fusion reference files.'
+    log.info '    --gtf          FILE                    Annotation file.'
     log.info '    --bed        STRING                bed file with interval list'
-    log.info '    --ref_folder     STRING                Folder with reference genome and STAR index (default: ref).'
     log.info ""
     log.info 'Optional arguments:'
-    log.info '--ref          FILE                    Reference fasta file (with index) for splice junction trimming and base recalibration.'
-    log.info '--output_folder     STRING                Output folder (default: results_alignment).'
+    log.info '    --ref          FILE                    Reference fasta file (with index) for splice junction trimming and base recalibration.'
+    log.info '    --output_folder     STRING                Output folder (default: results_alignment).'
     log.info '    --cpu          INTEGER                 Number of cpu used by bwa mem and sambamba (default: 8).'
     log.info '    --mem          INTEGER                 Size of memory used for mapping (in GB) (default: 32).'
     log.info '    --mem_QC     INTEGER                 Size of memory used for QC and cutadapt (in GB) (default: 32).'
@@ -85,39 +90,62 @@ if (params.help) {
     log.info '    --GATK_jar        STRING                path to GATK GenomeAnalysisTK.jar file (default : .)'
     log.info '    --stranded        STRING                are reads stranded? (default : no; alternatives : yes, r)'
     log.info '    --hisat2_idx        STRING                hisat2 index file prefix (default : genome_tran)'
-    log.info ""
-    log.info "Flags:"
-    log.info '--sjtrim                    enable splice junction trimming'
-    log.info '--recalibration                    performs base quality score recalibration (GATK)'
-    log.info '--hisat2                    use hisat2 instead of STAR for reads mapping'
-    log.info '--clustering                    perform unsupervised analysis of read counts'
+    log.info '    --clustering_n        INTEGER               number of genes to use for clustering  (default : 500)'
+    log.info '    --clustering_t        STRING                count transformation method; rld, vst, or auto (default : vst)'
+    log.info '    --clustering_c        STRING                clustering algorithm to be passed to ConsensusClusterPlus (default : hc)'
+    log.info '    --clustering_l        STRING                method for hierarchical clustering to be passed to ConsensusClusterPlus (default : complete)'
+    log.info ''
+    log.info 'Flags:'
+    log.info '    --sjtrim                    enable splice junction trimming'
+    log.info '    --recalibration                    performs base quality score recalibration (GATK)'
+    log.info '    --hisat2                    use hisat2 instead of STAR for reads mapping'
+    log.info '    --clustering                    perform unsupervised analysis of read counts'
     log.info ''
     exit 0
+
+params.clustering_n = 500 
+params.clustering_t = "vst"
+params.clustering_c = "hc"
+params.clustering_l = "complete"
+
+params.sjtrim       = null
+params.recalibration = null
+params.hisat2       = null
+params.clustering   = null
+
+params.htseq_maxreads = null //default value of htseq-count is 30000000
+params.help         = null
+
 }else {
   /* Software information */
-  log.info "input_folder=${params.input_folder}"
-  log.info "ref=${params.ref}"
-  log.info "cpu=${params.cpu}"
-  log.info "mem=${params.mem}"
-  log.info "fastq_ext=${params.fastq_ext}"
-  log.info "suffix1=${params.suffix1}"
-  log.info "suffix2=${params.suffix2}"
-  log.info "output_folder=${params.output_folder}"
-  log.info "bed=${params.bed}"
-  log.info "GATK_bundle=${params.GATK_bundle}"
-  log.info "GATK_jar=${params.GATK_jar}"
-  log.info "mem_QC=${params.mem_QC}"
-  log.info "ref_folder=${params.ref_folder}"
-  log.info "annot_gtf=${params.annot_gtf}"
-  log.info "RG=${params.RG}"
-  log.info "stranded=${params.stranded}"
-  log.info "hisat2_idx=${params.hisat2_idx}"
-  log.info "sjtrim=${params.sjtrim}"
-  log.info "hisat2=${params.hisat2}"
-  log.info "clustering=${params.clustering}"
+  log.info "input_folder = ${params.input_folder}"
+  log.info "ref          = ${params.ref}"
+  log.info "cpu          = ${params.cpu}"
+  log.info "mem          = ${params.mem}"
+  log.info "fastq_ext    = ${params.fastq_ext}"
+  log.info "suffix1      = ${params.suffix1}"
+  log.info "suffix2      = ${params.suffix2}"
+  log.info "output_folder= ${params.output_folder}"
+  log.info "bed          = ${params.bed}"
+  log.info "GATK_bundle  = ${params.GATK_bundle}"
+  log.info "GATK_jar     = ${params.GATK_jar}"
+  log.info "mem_QC       = ${params.mem_QC}"
+  log.info "ref_folder   = ${params.ref_folder}"
+  log.info "starfusion_folder = ${params.starfusion_folder}"
+  log.info "gtf    = ${params.gtf}"
+  log.info "RG           = ${params.RG}"
+  log.info "stranded     = ${params.stranded}"
+  log.info "hisat2_idx   = ${params.hisat2_idx}"
+  log.info "sjtrim       = ${params.sjtrim}"
+  log.info "hisat2       = ${params.hisat2}"
+  log.info "clustering   = ${params.clustering}"
   log.info "htseq_maxreads=${params.htseq_maxreads}"
-  log.info "recalibration=${params.recalibration}"
-  log.info "clustering=${params.clustering}"
+  log.info "recalibration= ${params.recalibration}"
+
+  log.info "clustering_n = ${params.clustering_n}"
+  log.info "clustering_t = ${params.clustering_t}"
+  log.info "clustering_c = ${params.clustering_c}"
+  log.info "clustering_l = ${params.clustering_l}"
   log.info "help=${params.help}"
 }
 
@@ -149,10 +177,13 @@ if(params.hisat2){
 	ref_14 = Channel.fromPath(params.ref_folder +'/sjdbList.fromGTF.out.tab')
 	ref_15 = Channel.fromPath(params.ref_folder +'/sjdbList.out.tab')
 	ref    = ref_1.concat( ref_2,ref_3,ref_4,ref_5,ref_6,ref_7,ref_8,ref_9,ref_10,ref_11,ref_12,ref_13,ref_14,ref_15)
+	ref.into { ref_align; ref_fusion }
+	blast_ava = file("${params.starfusion_folder}/blast_pairs.idx")
+	gtf_gs = file("${params.starfusion_folder}/ref_annot.gtf.gene_spans")
 }
 
-annot_gtf = file(params.annot_gtf)
-bed       = file(params.bed)
+gtf    = file(params.gtf)
+bed    = file(params.bed)
 
 //read files
 mode = 'fastq'
@@ -231,7 +262,7 @@ process fastqc_pretrim {
 	set file("${file_tag}${params.suffix1}_pretrim_fastqc.zip"), file("${file_tag}${params.suffix2}_pretrim_fastqc.zip") into fastqc_pairs
 	set val(file_tag), file(pairs) into readPairs3
 	
-	publishDir params.output_folder, mode: 'copy', pattern: '{*fastqc.zip}'
+	publishDir "${params.output_folder}/QC/fastq", mode: 'copy', pattern: '{*fastqc.zip}'
 
 	shell:
         file_tag = pairs[0].name.replace("${params.suffix1}.${params.fastq_ext}","")
@@ -256,13 +287,15 @@ process adapter_trimming {
 	    set file("${file_tag}${params.suffix1}_val_1_fastqc.zip"), file("${file_tag}${params.suffix2}_val_2_fastqc.zip") into fastqc_postpairs
 	    file("${file_tag}*trimming_report.txt") into trimming_reports
 	    
-	    publishDir params.output_folder, mode: 'copy', pattern: '{*report.txt,*fastqc.zip}'
+	    publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: '{*report.txt,*fastqc.zip}'
 	    
             shell:
             '''
 	    trim_galore --paired --fastqc !{pairs3[0]} !{pairs3[1]}
             '''
 }
+
+readPairs4.into { readPairs_align; readPairs_fusion }
 
 
 //Mapping, mark duplicates and sorting
@@ -272,17 +305,27 @@ process alignment {
       tag { file_tag }
       
       input:
-      set val(file_tag), file(pairs5)  from readPairs4
-      file ref from ref.collect()
-      file annot_gtf
+      set val(file_tag), file(pairs5)  from readPairs_align
+      file ref from ref_align.collect()
+      file gtf
                   
       output:
       set val(file_tag), file("${file_tag}.bam"), file("${file_tag}.bam.bai") into bam_files
-      file("*.out*") into align_out
+      file("*Log*") into align_out
+      set val(file_tag), file("*Chimeric.out.junction") into SJ_out
       if( (params.sjtrim == null)&&(params.recalibration == null) ){
-        publishDir params.output_folder, mode: 'copy'
+      	publishDir params.output_folder, mode: 'copy', saveAs: {filename ->
+                 if (filename.indexOf(".bam") > 0)                      "BAM/$filename"
+            else if (filename.indexOf("SJ") > 0)              "BAM/$filename"
+	    else if (filename.indexOf("Chimeric") > 0)              "BAM/$filename"
+            else if (filename.indexOf("Log") > 0)             "QC/alignment/$filename"
+        }
       }else{
-	publishDir params.output_folder, mode: 'copy', pattern: "out"
+	publishDir params.output_folder, mode: 'copy', saveAs: {filename ->
+            if (filename.indexOf("SJ") > 0)              "BAM/$filename"
+	    else if (filename.indexOf("Chimeric") > 0)             "BAM/$filename"
+            else if (filename.indexOf("Log") > 0)             "QC/alignment/$filename"
+        }
       }
             
       shell:
@@ -296,21 +339,55 @@ process alignment {
 	    '''
       }else{
       '''
-      STAR --outSAMattrRGline ID:!{file_tag} SM:!{file_tag} !{params.RG} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{align_threads} --genomeDir . --sjdbGTFfile !{annot_gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outStd SAM | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
-      mv Log.final.out STAR.!{file_tag}.Log.final.out
+      STAR --outSAMattrRGline ID:!{file_tag} SM:!{file_tag} !{params.RG} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{align_threads} --genomeDir . --sjdbGTFfile !{gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outStd SAM | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
       mv Chimeric.out.junction STAR.!{file_tag}.Chimeric.out.junction 
       mv Chimeric.out.sam STAR.!{file_tag}.Chimeric.out.sam
+      mv SJ.out.tab STAR.!{file_tag}.SJ.out.tab
+      mv Log.final.out STAR.!{file_tag}.Log.final.out
+      mv Log.out STAR.!{file_tag}.Log.out
+      mv Log.progress.out    STAR.!{file_tag}.Log.progress.out
+      mv Log.std.out STAR.!{file_tag}.Log.std.out
       '''
       }
 }
 
-//STAR-Fusion --genome_lib_dir /path/to/your/CTAT_resource_lib -J Chimeric.out.junction --output_dir star_fusion_outdir
-//output: star-fusion.fusion_candidates.final.abridged
+fasta_ref       = file(params.ref)
+fasta_ref_fai   = file(params.ref + '.fai')
+
+// Fusion-genes detection
+if(params.hisat2==null){
+process fusion {
+      cpus params.cpu
+      memory params.mem_QC+'G'
+      tag { file_tag }
+      
+      input:
+      set val(file_tag), file(pairs)  from readPairs_fusion
+      set val(file_tag), file(SJ) from SJ_out
+      file ref from ref_fusion.collect()
+      file gtf
+      file gtf_gs
+      file fasta_ref
+      file blast_ava
+            
+      output:
+      file("star_fusion_${file_tag}")
+      publishDir "${params.output_folder}/fusion", mode: 'copy'
+            
+      shell:
+      '''
+      ln -s !{gtf} ref_annot.gtf
+      ln -s !{fasta_ref} ref_genome.fa
+      ln -s !{fasta_ref_fai} ref_genome.fa.fai
+      STAR-Fusion --genome_lib_dir . -J !{SJ} --left_fq !{pairs[0]} --right_fq !{pairs[1]} --output_dir star_fusion_!{file_tag} 
+      '''
+   }
+
+}
 
 if( (params.sjtrim!=null)||(params.recalibration!=null) ){
-    fasta_ref      = file(params.ref)
-    fasta_ref_fai  = file(params.ref + '.fai')
-    fasta_ref_dict = file(params.ref - ~/.fasta/  + '.dict')
+    fasta_ref_dictn = params.ref[0..<params.ref.lastIndexOf('.')]
+    fasta_ref_dict  = file(fasta_ref_dictn  + '.dict')
 }
 
 //Splice junctions trimming
@@ -330,15 +407,16 @@ if(params.sjtrim){
       file GATK_jar
             
       output:
-      set val("${file_tag}_split"), file("${file_tag}_split.bam"), file("${file_tag}_split.bam.bai") into bam_files2
+      set val(file_tag_new), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into bam_files2
       if(params.recalibration == null){
-        publishDir params.output_folder, mode: 'copy'
+        publishDir "${params.output_folder}/BAM", mode: 'copy'
       }
             
       shell:
+      file_tag_new = file_tag+'_split'
       '''
-      java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T SplitNCigarReads -R !{fasta_ref} -I !{bam} -o !{file_tag}_split.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
-      mv !{file_tag}_split.bai !{file_tag}_split.bam.bai
+      java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T SplitNCigarReads -R !{fasta_ref} -I !{bam} -o !{file_tag_new}.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
+      mv !{file_tag_new}.bai !{file_tag_new}.bam.bai
       '''
    }
 }else{
@@ -368,13 +446,17 @@ if(params.recalibration){
 	file dbsnp from bundle_dbsnp.collect()
 	
     	output:
-	set val(file_tag), file("${file_tag}.bam"), file("${file_tag}.bam.bai") into recal_bam_files
+	set val(file_tag_new), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into recal_bam_files
     	file("${file_tag}_recal.table") into recal_table_files
     	file("${file_tag}_post_recal.table") into recal_table_post_files
     	file("${file_tag}_recalibration_plots.pdf") into recal_plots_files
-    	publishDir params.output_folder, mode: 'copy'
+    	publishDir params.output_folder, mode: 'copy', saveAs: {filename ->
+                 if (filename.indexOf(".bam") > 0)                      "BAM/$filename"
+            else "QC/BQSR/$filename"
+        }
 
     	shell:
+	file_tag_new = file_tag+'_recal'
     	'''
     	indelsvcf=(`ls *indels*.vcf`)
     	dbsnpvcfs=(`ls *dbsnp*.vcf`)
@@ -385,8 +467,8 @@ if(params.recalibration){
     	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T BaseRecalibrator -filterRNC -nct !{params.cpu} -R !{fasta_ref} -I !{file_tag}.bam $knownSitescom -L !{bed} -o !{file_tag}_recal.table
     	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T BaseRecalibrator -filterRNC -nct !{params.cpu} -R !{fasta_ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{bed} -o !{file_tag}_post_recal.table		
     	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T AnalyzeCovariates -R !{fasta_ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T PrintReads -filterRNC -nct !{params.cpu} -R !{fasta_ref} -I !{file_tag}.bam -BQSR !{file_tag}_recal.table -L !{bed} -o !{file_tag}.bam
-    	mv !{file_tag}.bai !{file_tag}.bam.bai
+    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T PrintReads -filterRNC -nct !{params.cpu} -R !{fasta_ref} -I !{file_tag}.bam -BQSR !{file_tag_new}.table -L !{bed} -o !{file_tag_new}.bam
+    	mv !{file_tag_new}.bai !{file_tag_new}.bam.bai
     	'''
    }
 }else{      
@@ -407,7 +489,7 @@ process RSEQC{
 		
     		output:
 		file("${file_tag}_readdist.txt") into rseqc_files
-    		publishDir params.output_folder, mode: 'copy'
+    		publishDir "${params.output_folder}/QC/bam", mode: 'copy'
 
     		shell:
     		'''
@@ -417,7 +499,7 @@ process RSEQC{
 
 //Quantification
 process quantification{
-    	if(params.sjtrim){
+    	if( (params.sjtrim)||(params.recalibration) ){
 		cpus params.cpu
 		memory params.mem+'GB'
 	}else{
@@ -429,36 +511,29 @@ process quantification{
         
     	input:
     	set val(file_tag), file(bam), file(bai) from recal_bam_files4quant
-	file annot_gtf
+	file gtf
 
     	output:
 	file("${file_tag}_count.txt") into htseq_files
-    	publishDir params.output_folder, mode: 'copy'
+    	publishDir "${params.output_folder}/counts", mode: 'copy'
 
     	shell:
 	buffer=''
 	if(params.htseq_maxreads) buffer='--max-reads-in-buffer '+params.htseq_maxreads
-	//check later if htseq 0.8 options --nonunique is useful
-	if(params.sjtrim){
+	
+	if( (params.sjtrim)||(params.recalibration) ){
 	'''
 	htseq-count -h
 	mv !{file_tag}.bam !{file_tag}_coordinate_sorted.bam
 	sambamba sort -n -t !{task.cpus} -m !{params.mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam !{file_tag}_coordinate_sorted.bam
-	htseq-count -r name -s !{params.stranded} -f bam !{file_tag}.bam !{annot_gtf} !{buffer} --additional-attr=gene_name > !{file_tag}_count.txt 
+	htseq-count -r name -s !{params.stranded} -f bam !{file_tag}.bam !{gtf} !{buffer} --additional-attr=gene_name > !{file_tag}_count.txt 
 	'''
 	}else{
 	 	'''
-		htseq-count -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{annot_gtf} !{buffer} --additional-attr=gene_name > !{file_tag}_count.txt 
+		htseq-count -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{gtf} !{buffer} --additional-attr=gene_name > !{file_tag}_count.txt 
     		'''
 	}
 }
-
-//Transcript discovery 
-//stringtie !{file_tag}.bam -o !{file_tag}.gtf -p !{cpus} -G !{annot_gtf} -l !{file_tag} -C !{file_tag}_cov_refs.gtf
-//ls *.gtf > mergelist.txt
-//stringtie --merge -p !{cpus} -G !{annot_gtf} -o stringtie_merged.gtf mergelist.txt
-//gffcompare -r !{annot_gtf} -G -o !{file_tag} !{file_tag}.gtf
-//stringtie -e -B -p !{cpus} -G stringtie_merged.gtf -o !{file_tag}_merged.gtf !{file_tag}.bam -A !{file_tag}_gene_abund.tab -B
 
 
 process multiqc_pretrim {
@@ -472,7 +547,7 @@ process multiqc_pretrim {
     output:
     file("multiqc_pretrim_report.html") into multiqc_pre
     file("multiqc_pretrim_report_data") into multiqc_pre_data
-    publishDir params.output_folder, mode: 'copy'
+    publishDir "${params.output_folder}/QC", mode: 'copy'
 
     shell:
     '''
@@ -501,7 +576,7 @@ process multiqc_posttrim {
     file("multiqc_posttrim_report.html") into multiqc_post
     file("multiqc_posttrim_report_data") into multiqc_post_data
 
-    publishDir params.output_folder, mode: 'copy'
+    publishDir "${params.output_folder}/QC", mode: 'copy'
 
     shell:
     '''
@@ -520,11 +595,12 @@ if(params.clustering){
 	file htseq from htseq_files4clust.collect()
 	output:
     	file("unsupervised_analysis") into unsup_res
-    	publishDir params.output_folder, mode: 'move'
+
+	publishDir params.output_folder, mode: 'move'
 
     	shell:
     	'''
-	RNAseq_unsupervised.R -o unsupervised_analysis -n 500 -t vst -c hc -l complete
+	RNAseq_unsupervised.R -o unsupervised_analysis -n !{params.clustering_n} -t !{params.clustering_t} -c !{params.clustering_c} -l !{params.clustering_l}
     	'''
    }
 }

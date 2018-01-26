@@ -46,6 +46,8 @@ params.recalibration= null
 params.hisat2       = null
 params.clustering   = null
 
+params.cutadapt     = null
+
 params.htseq_maxreads= null //default value of htseq-count is 30000000
 params.help         = null
 
@@ -100,6 +102,7 @@ if (params.help) {
     log.info '    --recalibration                    performs base quality score recalibration (GATK)'
     log.info '    --hisat2                    use hisat2 instead of STAR for reads mapping'
     log.info '    --clustering                    perform unsupervised analysis of read counts'
+    log.info '    --cutadapt                  perform adapter sequence trimming'
     log.info ''
     exit 0
 
@@ -274,7 +277,8 @@ process fastqc_pretrim {
 }
 
 // adapter sequence trimming and post trimming QC
-process adapter_trimming {
+if(params.cutadapt!=null){
+	process adapter_trimming {
             cpus '1'
             memory params.mem_QC+'GB'
             tag { file_tag }
@@ -293,6 +297,11 @@ process adapter_trimming {
             '''
 	    trim_galore --paired --fastqc !{pairs3[0]} !{pairs3[1]}
             '''
+	}
+}else{
+	readPairs4 = readPairs3
+	fastqc_postpairs=null
+	trimming_reports=null
 }
 
 readPairs4.into { readPairs_align; readPairs_fusion }
@@ -570,11 +579,11 @@ process multiqc_posttrim {
     tag { "all"}
         
     input:
-    file fastqcpost1 from fastqc_postpairs.collect()
     file STAR from align_out.collect()
     file htseq from htseq_files.collect()
     file rseqc from rseqc_files.collect()
     file trim from trimming_reports.collect()
+    file fastqcpost from fastqc_postpairs.collect()
         
     output:
     file("multiqc_posttrim_report.html") into multiqc_post

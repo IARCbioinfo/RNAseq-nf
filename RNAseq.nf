@@ -392,7 +392,7 @@ process fusion {
 	 ln -s !{fasta_ref} ref_genome.fa
       	 ln -s !{fasta_ref_fai} ref_genome.fa.fai
       fi
-      STAR-Fusion --genome_lib_dir . -J !{SJ} --left_fq !{pairs[0]} --right_fq !{pairs[1]} --output_dir star_fusion_!{file_tag} --FusionInspector --denovo_reconstruct --annotate --examine_coding_effect
+      STAR-Fusion --genome_lib_dir . -J !{SJ} --left_fq !{pairs[0]} --right_fq !{pairs[1]} --output_dir star_fusion_!{file_tag} --FusionInspector validate --denovo_reconstruct --annotate --examine_coding_effect
       '''
    }
 

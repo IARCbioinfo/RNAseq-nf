@@ -18,12 +18,14 @@ Nextflow pipeline for RNA sequencing mapping, quality control, reads counting, a
 5. [*RESeQC*](http://rseqc.sourceforge.net/)
 6. [*multiQC*](http://multiqc.info/docs/)
 7. [*STAR*](https://github.com/alexdobin/STAR/blob/master/doc/STARmanual.pdf)
-8. [*htseq*](http://www-huber.embl.de/HTSeq/doc/install.html#install); the python script htseq-count must also be in the PATH
+8. [*STAR-Fusion*](https://github.com/STAR-Fusion/STAR-Fusion/wiki) (version >= 1.2.0) with dependencies (Perl modules, Trinity)
+9. [*htseq*](http://www-huber.embl.de/HTSeq/doc/install.html#install); the python script htseq-count must also be in the PATH
 
 In addition, STAR requires genome indices that can be generated from a genome fasta file ref.fa and a splice junction annotation file ref.gtf using the following command:
 ```bash
 STAR --runThreadN n --runMode genomeGenerate --genomeDir ref --genomeFastaFiles ref.fa --sjdbGTFfile ref.gtf --sjdbOverhang 99
 ```
+STAR-Fusion with option *--FusionInspector validate* requires an environment variable *TRINITY_HOME* set to the Trinity installation directory.
 
 ### Alignment with hisat2
 In order to perform the optional alignment with hisat2, hisat2 must be installed:

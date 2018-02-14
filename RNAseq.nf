@@ -52,7 +52,7 @@ params.htseq_maxreads= null //default value of htseq-count is 30000000
 params.help         = null
 
 
-log.info ""
+log.info "" 
 log.info "--------------------------------------------------------"
 log.info "  RNAseq-nf 1.0.0: alignment, QC, and reads counting workflow for RNA sequencing "
 log.info "--------------------------------------------------------"

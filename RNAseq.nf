@@ -321,18 +321,16 @@ process alignment {
       output:
       set val(file_tag), file("${file_tag}.bam"), file("${file_tag}.bam.bai") into bam_files
       file("*Log*") into align_out
-      set val(file_tag), file("*Chimeric.out.junction") into SJ_out
+      set val(file_tag), file("*SJ.out*") into SJ_out
       if( (params.sjtrim == null)&&(params.recalibration == null) ){
       	publishDir params.output_folder, mode: 'copy', saveAs: {filename ->
                  if (filename.indexOf(".bam") > 0)                      "BAM/$filename"
             else if (filename.indexOf("SJ") > 0)              "BAM/$filename"
-	    else if (filename.indexOf("Chimeric") > 0)              "BAM/$filename"
             else if (filename.indexOf("Log") > 0)             "QC/alignment/$filename"
         }
       }else{
 	publishDir params.output_folder, mode: 'copy', saveAs: {filename ->
             if (filename.indexOf("SJ") > 0)              "BAM/$filename"
-	    else if (filename.indexOf("Chimeric") > 0)             "BAM/$filename"
             else if (filename.indexOf("Log") > 0)             "QC/alignment/$filename"
         }
       }
@@ -349,8 +347,8 @@ process alignment {
       }else{
       '''
       STAR --outSAMattrRGline ID:!{file_tag} SM:!{file_tag} !{params.RG} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 200000 --alignIntronMax 200000 --alignSJstitchMismatchNmax 5 -1 5 5 --twopassMode Basic --runThreadN !{align_threads} --genomeDir . --sjdbGTFfile !{gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
-      mv Chimeric.out.junction STAR.!{file_tag}.Chimeric.out.junction 
-      mv Chimeric.out.sam STAR.!{file_tag}.Chimeric.out.sam
+      mv Chimeric.out.junction STAR.!{file_tag}.Chimeric.SJ.out.junction 
+      mv Chimeric.out.sam STAR.!{file_tag}.Chimeric.SJ.out.sam
       mv SJ.out.tab STAR.!{file_tag}.SJ.out.tab
       mv Log.final.out STAR.!{file_tag}.Log.final.out
       mv Log.out STAR.!{file_tag}.Log.out

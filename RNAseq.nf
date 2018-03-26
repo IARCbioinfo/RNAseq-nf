@@ -321,7 +321,8 @@ process alignment {
       output:
       set val(file_tag), file("${file_tag}.bam"), file("${file_tag}.bam.bai") into bam_files
       file("*Log*") into align_out
-      set val(file_tag), file("*SJ.out*") into SJ_out
+      set val(file_tag), file("*SJ.out.junction") into SJ_out
+      set file("*SJ.out.sam"), file("*SJ.out.tab") into SJ_out_others
       if( (params.sjtrim == null)&&(params.recalibration == null) ){
       	publishDir params.output_folder, mode: 'copy', saveAs: {filename ->
                  if (filename.indexOf(".bam") > 0)                      "BAM/$filename"

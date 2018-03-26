@@ -185,6 +185,15 @@ if(params.hisat2){
 	gtf_gs = file("${params.starfusion_folder}/ref_annot.gtf.gene_spans")
 }
 
+if(params.starfusion_folder ){
+        fus_annot  = Channel.fromPath(params.starfusion_folder +'/ctat_genome_lib_build_dir/fusion_annot_lib.idx')
+	pfam_annot = Channel.fromPath(params.starfusion_folder +'/ctat_genome_lib_build_dir/pfam_domains.dbm')
+	cds_annot  = Channel.fromPath(params.starfusion_folder +'/ctat_genome_lib_build_dir/ref_annot.cds')
+	pop_annot  = Channel.fromPath(params.starfusion_folder +'/ctat_genome_lib_build_dir/ref_annot.pep')
+	prot_annot = Channel.fromPath(params.starfusion_folder +'/ctat_genome_lib_build_dir/ref_annot.prot_info.dbm')	       
+        //ref_annot.gtf        //ref_genome.fa.fai	//ref_genome.fa	//ref_annot.gtf.gene_spans
+}
+
 gtf    = file(params.gtf)
 bed    = file(params.bed)
 
@@ -377,6 +386,11 @@ process fusion {
       file gtf_gs
       file fasta_ref
       file blast_ava
+      file fus_annot
+      file pfam_annot
+      file cds_annot
+      file pop_annot
+      file prot_annot
             
       output:
       file("star_fusion_${file_tag}")

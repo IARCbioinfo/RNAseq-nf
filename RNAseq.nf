@@ -19,7 +19,6 @@
 
 params.input_folder = null
 params.ref_folder   = null
-params.starfusion_folder = null
 params.gtf          = null
 params.bed          = null
 
@@ -74,7 +73,6 @@ if (params.help) {
     log.info 'Mandatory arguments:'
     log.info '    --input_folder   FOLDER                  Folder containing BAM or fastq files to be aligned.'
     log.info '    --ref_folder          FOLDER                   Folder with genome reference files (with index).'
-    log.info '    --starfusion_folder          FOLDER                   Folder with STAR-Fusion reference files.'
     log.info '    --gtf          FILE                    Annotation file.'
     log.info '    --bed        STRING                bed file with interval list'
     log.info ""
@@ -134,7 +132,6 @@ params.help         = null
   log.info "GATK_jar     = ${params.GATK_jar}"
   log.info "mem_QC       = ${params.mem_QC}"
   log.info "ref_folder   = ${params.ref_folder}"
-  log.info "starfusion_folder = ${params.starfusion_folder}"
   log.info "gtf          = ${params.gtf}"
   log.info "RG           = ${params.RG}"
   log.info "stranded     = ${params.stranded}"
@@ -180,19 +177,9 @@ if(params.hisat2){
 	ref_14 = Channel.fromPath(params.ref_folder +'/sjdbList.fromGTF.out.tab')
 	ref_15 = Channel.fromPath(params.ref_folder +'/sjdbList.out.tab')
 	ref    = ref_1.concat( ref_2,ref_3,ref_4,ref_5,ref_6,ref_7,ref_8,ref_9,ref_10,ref_11,ref_12,ref_13,ref_14,ref_15)
-	ref.into { ref_align; ref_fusion }
-	blast_ava = file("${params.starfusion_folder}/blast_pairs.idx")
-	gtf_gs = file("${params.starfusion_folder}/ref_annot.gtf.gene_spans")
+	//ref.into { ref_align; ref_fusion }
 }
 
-if(params.starfusion_folder ){
-        fus_annot  = Channel.fromPath(params.starfusion_folder +'/ctat_genome_lib_build_dir/fusion_annot_lib.idx')
-	pfam_annot = Channel.fromPath(params.starfusion_folder +'/ctat_genome_lib_build_dir/pfam_domains.dbm')
-	cds_annot  = Channel.fromPath(params.starfusion_folder +'/ctat_genome_lib_build_dir/ref_annot.cds')
-	pop_annot  = Channel.fromPath(params.starfusion_folder +'/ctat_genome_lib_build_dir/ref_annot.pep')
-	prot_annot = Channel.fromPath(params.starfusion_folder +'/ctat_genome_lib_build_dir/ref_annot.prot_info.dbm')	       
-        //ref_annot.gtf        //ref_genome.fa.fai	//ref_genome.fa	//ref_annot.gtf.gene_spans
-}
 
 gtf    = file(params.gtf)
 bed    = file(params.bed)
@@ -324,7 +311,7 @@ process alignment {
       
       input:
       set val(file_tag), file(pairs5)  from readPairs_align
-      file ref from ref_align.collect()
+      file ref from ref.collect()
       file gtf
                   
       output:
@@ -371,45 +358,6 @@ process alignment {
 fasta_ref       = file(params.ref)
 fasta_ref_fai   = file(params.ref + '.fai')
 
-// Fusion-genes detection
-if(params.hisat2==null){
-process fusion {
-      cpus params.cpu
-      memory params.mem_QC+'G'
-      tag { file_tag }
-      
-      input:
-      set val(file_tag), file(pairs)  from readPairs_fusion
-      set val(file_tag), file(SJ) from SJ_out
-      file ref from ref_fusion.collect()
-      file gtf
-      file gtf_gs
-      file fasta_ref
-      file blast_ava
-      file fus_annot
-      file pfam_annot
-      file cds_annot
-      file pop_annot
-      file prot_annot
-            
-      output:
-      file("star_fusion_${file_tag}")
-      publishDir "${params.output_folder}/fusion", mode: 'copy'
-            
-      shell:
-      '''
-      if [ ! -f ref_annot.gtf ]; then
-	 ln -s !{gtf} ref_annot.gtf
-      fi
-      if [ ! -f ref_genome.fa ]; then
-	 ln -s !{fasta_ref} ref_genome.fa
-      	 ln -s !{fasta_ref_fai} ref_genome.fa.fai
-      fi
-      STAR-Fusion --genome_lib_dir . -J !{SJ} --left_fq !{pairs[0]} --right_fq !{pairs[1]} --output_dir star_fusion_!{file_tag} --FusionInspector validate --denovo_reconstruct --annotate --examine_coding_effect
-      '''
-   }
-
-}
 
 if( (params.sjtrim!=null)||(params.recalibration!=null) ){
     fasta_ref_dictn = params.ref[0..<params.ref.lastIndexOf('.')]

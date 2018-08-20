@@ -10,7 +10,7 @@ Nextflow pipeline for RNA sequencing mapping, quality control, reads counting, a
 
 ## Dependencies
 
-1. Nextflow : for common installation procedures see the [IARC-nf](https://github.com/IARCbioinfo/IARC-nf) repository.
+1. Nextflow: for common installation procedures see the [IARC-nf](https://github.com/IARCbioinfo/IARC-nf) repository.
 
 2. [*fastqc*](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/INSTALL.txt)
 3. [*cutadapt*](http://cutadapt.readthedocs.io/en/stable/installation.html), which requires Python version > 2.7
@@ -21,11 +21,12 @@ Nextflow pipeline for RNA sequencing mapping, quality control, reads counting, a
 8. [*STAR-Fusion*](https://github.com/STAR-Fusion/STAR-Fusion/wiki) (version >= 1.2.0) with dependencies (Perl modules, Trinity)
 9. [*htseq*](http://www-huber.embl.de/HTSeq/doc/install.html#install); the python script htseq-count must also be in the PATH
 
-In addition, STAR requires genome indices that can be generated from a genome fasta file ref.fa and a splice junction annotation file ref.gtf using the following command:
+A bundle with reference genome and corresponding annotations for STAR is available at https://data.broadinstitute.org/Trinity/CTAT_RESOURCE_LIB/.
+
+Alternatively, STAR genome indices can be generated from a genome fasta file ref.fa and a splice junction annotation file ref.gtf using the following command:
 ```bash
 STAR --runThreadN n --runMode genomeGenerate --genomeDir ref --genomeFastaFiles ref.fa --sjdbGTFfile ref.gtf --sjdbOverhang 99
 ```
-STAR-Fusion with option *--FusionInspector validate* requires an environment variable *TRINITY_HOME* set to the Trinity installation directory.
 
 ### Alignment with hisat2
 In order to perform the optional alignment with hisat2, hisat2 must be installed:

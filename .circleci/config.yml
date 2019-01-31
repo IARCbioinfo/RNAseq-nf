@@ -1,0 +1,26 @@
+version: 2
+
+jobs:
+        build:
+                machine: true
+                steps:
+                        - checkout
+                        - run: wget -qO- get.nextflow.io | bash ; chmod 755 nextflow ; sudo ln -s ~/nextflow /usr/local/bin/ ; sudo apt-get install graphviz
+                        - run: cd ~ && git clone https://github.com/iarcbioinfo/data_test.git
+                        - run: echo " docker.runOptions = '-u $(id -u):$(id -g)' " > ~/.nextflow/config
+                        - run: cd ~/project/ ; docker build -t iarcbioinfo/rnaseq-nf .
+                        - run: nextflow run ~/project/RNAseq.nf --help
+                        - run: cd ~/data_test/ && nextflow run ~/project/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --output_folder BAM_realigned --ref_folder  ~/data_test/REF --gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag_STAR.png
+                        - run: cd ~/data_test/ && nextflow run ~/project/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --output_folder BAM_realigned --ref_folder  ~/data_test/REF --gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag_STAR.html
+                        - run: cd ~/data_test/ && nextflow run ~/project/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --output_folder BAM_realigned_hisat2 --ref_folder  ~/data_test/REF --gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag_hisat2.png --hisat2 --hisat2_idx 17_7572000-7591000
+                        - run: cd ~/data_test/ && nextflow run ~/project/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --output_folder BAM_realigned_hisat2 --ref_folder  ~/data_test/REF --gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 -with-dag dag_hisat2.html --hisat2 --hisat2_idx 17_7572000-7591000
+                        - run: cd ~/data_test/ && nextflow run ~/project/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --output_folder BAM_realigned_sjtrim --ref_folder  ~/data_test/REF --gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 --sjtrim --GATK_jar ~/GenomeAnalysisTK.jar --ref ~/data_test/REF/17_7572000-7591000.fasta -with-dag dag_STAR_sjtrim.png
+                        - run: cd ~/data_test/ && nextflow run ~/project/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --output_folder BAM_realigned_sjtrim --ref_folder  ~/data_test/REF --gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 --sjtrim --GATK_jar ~/GenomeAnalysisTK.jar --ref ~/data_test/REF/17_7572000-7591000.fasta -with-dag dag_STAR_sjtrim.html
+                        - run: cd ~/data_test/ && nextflow run ~/project/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --output_folder BAM_realigned_recal --ref_folder  ~/data_test/REF --gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 --GATK_jar ~/GenomeAnalysisTK.jar --ref ~/data_test/REF/17_7572000-7591000.fasta --recalibration --GATK_bundle ~/data_test/REF/ -with-dag dag_STAR_recal.png 
+                        - run: cd ~/data_test/ && nextflow run ~/project/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --output_folder BAM_realigned_recal --ref_folder  ~/data_test/REF --gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 --GATK_jar ~/GenomeAnalysisTK.jar --ref ~/data_test/REF/17_7572000-7591000.fasta --recalibration --GATK_bundle ~/data_test/REF/ -with-dag dag_STAR_recal.html
+                        - run: cd ~/data_test/ && nextflow run ~/project/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --output_folder BAM_realigned_sjtrim_recal --ref_folder  ~/data_test/REF --gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 --sjtrim --GATK_jar ~/GenomeAnalysisTK.jar --ref ~/data_test/REF/17_7572000-7591000.fasta --recalibration --GATK_bundle ~/data_test/REF/ -with-dag dag_STAR_sjtrim_recal.png 
+                        - run: cd ~/data_test/ && nextflow run ~/project/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder BAM/ --output_folder BAM_realigned_sjtrim_recal --ref_folder  ~/data_test/REF --gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 4 --mem 4 --sjtrim --GATK_jar ~/GenomeAnalysisTK.jar --ref ~/data_test/REF/17_7572000-7591000.fasta --recalibration --GATK_bundle ~/data_test/REF/ -with-dag dag_STAR_sjtrim_recal.html
+                        - run: cd ; cp ~/results/nf-pipeline_info/rnaseq-nf_dag.html ~/project/dag.html
+                        - deploy:
+                                branch: [master, dev]
+                                commands: chmod +x deploy.sh && ./deploy.sh

@@ -1,7 +1,11 @@
 #!/bin/bash
 cd ~/RNAseq-nf/
+commitID=`git log -n 1 --pretty="%h" -- environment.yml`
+sed -i '/^# environment.yml/d' Singularity && echo -e "# environment.yml commit ID: $commitID\n" >> Singularity
 git config --global user.email "alcalan@fellows.iarc.fr"
-git add dag_*
+git config --global user.name "Circle CI_$CIRCLE_PROJECT_REPONAME_$CIRCLE_BRANCH"
+git add .
+git status
 git commit -m "Generated DAG [skip ci]"
 git push origin $CIRCLE_BRANCH
 

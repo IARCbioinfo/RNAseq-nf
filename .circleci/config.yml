@@ -19,4 +19,4 @@ jobs:
                         - run: cd ; cp ~/BAM_realigned/nf-pipeline_info/rnaseq-nf_dag.html ~/project/dag.html
                         - deploy:
                                 branch: [master, dev]
-                                commands: chmod +x deploy.sh && ./deploy.sh
+                                command: chmod +x deploy.sh && ./deploy.sh

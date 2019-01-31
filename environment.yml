@@ -3,6 +3,7 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
+  - python=3.6.0
   - r-base
   - r-essentials
   - fastqc=0.11.8

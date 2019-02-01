@@ -7,7 +7,7 @@ dependencies:
   - fastqc=0.11.8
   - cutadapt=1.18
   - trim-galore=0.5.0
-  - htseq=0.11.2
+
   - multiqc=1.7
   - samtools=1.9
   - star=2.6.1b

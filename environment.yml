@@ -4,8 +4,6 @@ channels:
   - bioconda
 dependencies:
   - python=3.6.0
-  - r-base
-  - r-essentials
   - fastqc=0.11.8
   - cutadapt=1.18
   - trim-galore=0.5.0
@@ -16,6 +14,3 @@ dependencies:
   - rseqc=3.0.0
   - sambamba=0.6.8
   - samblaster=0.1.24
-  - r-ggplot2=3.1.0
-  - r-gplots=3.0.1
-  - r-gsalib=2.1.0

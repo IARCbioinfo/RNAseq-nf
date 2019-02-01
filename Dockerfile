@@ -28,6 +28,6 @@ MAINTAINER **nalcala** <**alcalan@fellows.iarc.fr**>
 #	apt-get update -y && \
 
 ################## INSTALLATION ######################
-#COPY environment.yml ~/.
-RUN conda env create --name rnaseq -f environment.yml && conda clean -a
+COPY environment.yml ~/.
+RUN cd && conda env create --name rnaseq -f environment.yml && conda clean -a
 RUN conda activate rnaseq

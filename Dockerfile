@@ -29,5 +29,5 @@ MAINTAINER **nalcala** <**alcalan@fellows.iarc.fr**>
 
 ################## INSTALLATION ######################
 #COPY environment.yml ~/.
-RUN conda env create -n rnaseq -f environment.yml && conda clean -a
+RUN conda env create --name rnaseq -f environment.yml && conda clean -a
 RUN conda activate rnaseq

@@ -7,7 +7,7 @@ FROM nfcore/base
 LABEL base_image="nfcore/base"
 LABEL version="1.0"
 LABEL software="rnaseq-nf"
-LABEL software.version="2.0"
+LABEL software.version="2.1"
 LABEL about.summary="Container image containing all requirements for rnaseq-nf"
 LABEL about.home="http://github.com/IARCbioinfo/RNAseq-nf"
 LABEL about.documentation="http://github.com/IARCbioinfo/RNAseq-nf/README.md"
@@ -29,5 +29,5 @@ MAINTAINER **nalcala** <**alcalan@fellows.iarc.fr**>
 
 ################## INSTALLATION ######################
 COPY environment.yml /
-RUN conda env create -n root -f /environment.yml && conda clean -a
+RUN conda env update -n root -f /environment.yml && conda clean -a
 #RUN echo ". /opt/conda/etc/profile.d/conda.sh"  >> ~/.bashrc 

@@ -1,7 +1,4 @@
 #! /usr/bin/env nextflow
-
-// vim: syntax=groovy -*- mode: groovy;-*-
-
 // Copyright (C) 2017 IARC/WHO
 
 // This program is free software: you can redistribute it and/or modify
@@ -18,6 +15,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 params.input_folder = null
+params.input_file   = null
 params.ref_folder   = null
 params.gtf          = null
 params.bed          = null
@@ -39,6 +37,7 @@ params.clustering_n = 500
 params.clustering_t = "vst"
 params.clustering_c = "hc"
 params.clustering_l = "complete"
+params.cpu_trim     = 15
 
 params.sjtrim       = null
 params.recalibration= null
@@ -72,6 +71,7 @@ if (params.help) {
     log.info ''
     log.info 'Mandatory arguments:'
     log.info '    --input_folder   FOLDER                  Folder containing BAM or fastq files to be aligned.'
+    log.info '--input_file     STRING              Input file (comma-separated) with 3 columns:'
     log.info '    --ref_folder          FOLDER                   Folder with genome reference files (with index).'
     log.info '    --gtf          FILE                    Annotation file.'
     log.info '    --bed        STRING                bed file with interval list'
@@ -120,6 +120,7 @@ params.help         = null
 }else {
   /* Software information */
   log.info "input_folder = ${params.input_folder}"
+  log.info "input_file=${params.input_file}"
   log.info "ref          = ${params.ref}"
   log.info "cpu          = ${params.cpu}"
   log.info "mem          = ${params.mem}"
@@ -185,15 +186,35 @@ gtf    = file(params.gtf)
 bed    = file(params.bed)
 
 //read files
-mode = 'fastq'
-if (file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.fastq_ext}/ }.size() > 0){
-    println "fastq files found, proceed with alignment"
+if(params.input_file){
+	mode = 'infile'
+	Channel.fromPath("${params.input_file}")
+     	       .splitCsv( header: true, sep: '\t', strip: true )
+	       .map { row -> [ row.SM , row.RG , file(row.pair1), file(row.pair2) ] }
+	       .into{ readPairs ; readPairs2}
+	//readPairs2merge = readPairstmp.groupTuple(by: 0)
+    	//            		      .map { row -> tuple(row[0] , row[1] , row[1][0], row[2][0], row[3][0])  }
+	//single   = Channel.create()
+	//multiple = Channel.create()
+	//multiple1 = Channel.create()
+	//multiple2 = Channel.create()
+	//readPairs2merge.choice( single,multiple ) { a -> a[1].size() == 1 ? 0 : 1 }
+	//single2 = single.map { row -> tuple(row[0] , 1 , row[1][0], row[2][0], row[3][0])  }
+	//multiple.separate(multiple1,multiple2){ row -> [ [row[0] , row[1].size() ,  row[1][0], row[2][0], row[3][0]] , [row[0] , 2 , row[1][1], row[2][1],  row[3][1]] ] }
+	//readPairs=single2.concat(multiple1 ,multiple2 )*/
 }else{
-    if (file(params.input_folder).listFiles().findAll { it.name ==~ /.*bam/ }.size() > 0){
-        println "BAM files found, proceed with realignment"; mode ='bam'; files = Channel.fromPath( params.input_folder+'/*.bam' )
-    }else{
-        println "ERROR: input folder contains no fastq nor BAM files"; System.exit(0)
-    }
+	mode = 'fastq'
+	if (file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.fastq_ext}/ }.size() > 0){
+	    println "fastq files found, proceed with alignment"
+	}else{
+	    if (file(params.input_folder).listFiles().findAll { it.name ==~ /.*bam/ }.size() > 0){
+	        println "BAM files found, proceed with realignment"; mode ='bam'
+		files = Channel.fromPath( params.input_folder+'/*.bam' )
+		               .map {  path -> [ path.name.replace(".bam",""), path.name.replace(".bam","") ,  path ] }
+	    }else{
+	        println "ERROR: input folder contains no fastq nor BAM files"; System.exit(0)
+	    }
+	}
 }
 
 if(mode=='bam'){
@@ -203,10 +224,10 @@ if(mode=='bam'){
         tag { file_tag }
         
         input:
-        file infile from files
+        set val(file_tag) , val(rg), file(infile) from files
      
         output:
-	set file("${file_tag}_1.fq.gz"), file("${file_tag}_2.fq.gz")  into readPairs
+	set val(file_tag), val(file_tag), file("${file_tag}_1.fq.gz"), file("${file_tag}_2.fq.gz")  into readPairs
 
         shell:
 	file_tag = infile.baseName
@@ -240,13 +261,16 @@ if(mode=='fastq'){
     .map {  path -> [ path.name.replace("${params.suffix2}.${params.fastq_ext}",""), path ] }
 
 // Match the pairs on two channels having the same 'key' (name) and emit a new pair containing the expected files
-   readPairs = reads1
+   reads1
     .phase(reads2)
-    .map { pair1, pair2 -> [ pair1[1], pair2[1] ] }
+    .map { pair1, pair2 -> [ pair1[0] , pair1[0] , pair1[1], pair2[1] ] }
+    .into{ readPairs ; readPairs2}
 
     println reads1
 }
 }
+
+
 
 // pre-trimming QC
 process fastqc_pretrim {
@@ -255,53 +279,65 @@ process fastqc_pretrim {
         tag { file_tag }
         
         input:
-        file pairs from readPairs
+        set val(file_tag), val(rg), file(pair1) , file(pair2) from readPairs
 	
         output:
-	set file("${file_tag}${params.suffix1}_pretrim_fastqc.zip"), file("${file_tag}${params.suffix2}_pretrim_fastqc.zip") into fastqc_pairs
-	set val(file_tag), file(pairs) into readPairs3
+	file("*_pretrim_fastqc.zip") into fastqc_pairs
 	
 	publishDir "${params.output_folder}/QC/fastq", mode: 'copy', pattern: '{*fastqc.zip}'
 
 	shell:
-        file_tag = pairs[0].name.replace("${params.suffix1}.${params.fastq_ext}","")
+	basename1=pair1.baseName.split("\\.")[0]
+	basename2=pair2.baseName.split("\\.")[0]
         '''
-	fastqc -t !{task.cpus} !{pairs[0]} !{pairs[1]}
-	mv !{file_tag}!{params.suffix1}_fastqc.zip !{file_tag}!{params.suffix1}_pretrim_fastqc.zip
-	mv !{file_tag}!{params.suffix2}_fastqc.zip !{file_tag}!{params.suffix2}_pretrim_fastqc.zip 
+	fastqc -t !{task.cpus} !{pair1} !{pair2}
+	mv !{basename1}_fastqc.zip !{basename1}_pretrim_fastqc.zip
+	mv !{basename2}_fastqc.zip !{basename2}_pretrim_fastqc.zip 
         '''
 }
 
 // adapter sequence trimming and post trimming QC
 if(params.cutadapt!=null){
 	process adapter_trimming {
-            cpus '1'
+            cpus params.cpu_trim
             memory params.mem_QC+'GB'
             tag { file_tag }
 	    
             input:
-	    set val(file_tag), file(pairs3) from readPairs3
+	    set val(file_tag), val(rg), file(pair1), file(pair2) from readPairs2
 	    
             output:
-            set val(file_tag), file("${file_tag}*val*.fq.gz") into readPairs4
-	    set file("${file_tag}${params.suffix1}_val_1_fastqc.zip"), file("${file_tag}${params.suffix2}_val_2_fastqc.zip") into fastqc_postpairs
-	    file("${file_tag}*trimming_report.txt") into trimming_reports
+            set val(file_tag), val(rg) , file("${file_tag}*val_1.fq.gz"), file("${file_tag}*val_2.fq.gz")  into readPairs3
+	    file("*_val_*_fastqc.zip") into fastqc_postpairs
+	    file("*trimming_report.txt") into trimming_reports
 	    
 	    publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: '{*report.txt,*fastqc.zip}'
 	    
             shell:
+	    cpu_tg = params.cpu_trim -1 
+	    println cpu_tg
+	    cpu_tg2 = cpu_tg.div(3.5)
+	    //println cpu_tg2
+	    cpu_tg3 = Math.round(Math.ceil(cpu_tg2))
+	    println cpu_tg3
             '''
-	    trim_galore --paired --fastqc !{pairs3[0]} !{pairs3[1]}
+	    trim_galore --paired --fastqc --basename !{file_tag}_!{rg} -j !{cpu_tg3} !{pair1} !{pair2}
             '''
 	}
 }else{
-	readPairs4 = readPairs3
+	readPairs3 = readPairs2
 	fastqc_postpairs=null
 	trimming_reports=null
 }
 
-readPairs4.into { readPairs_align; readPairs_fusion }
+readPairs_align = Channel.create()
+readPairs_align2print = Channel.create()
+readPairs_aligntmp = readPairs3.groupTuple(by: 0)
+			       .into(readPairs_align,readPairs_align2print)
 
+readPairs_align2print.subscribe { row -> println "${row}" }
+
+//                            .map { row -> tuple(row[0] , row[1], row[2] , row[3][0] , row[4][0]  ) }
 
 //Mapping, mark duplicates and sorting
 process alignment {
@@ -310,12 +346,12 @@ process alignment {
       tag { file_tag }
       
       input:
-      set val(file_tag), file(pairs5)  from readPairs_align
+      set val(file_tag), val(rg),  file(pair1), file(pair2)  from readPairs_align
       file ref from ref.collect()
       file gtf
                   
       output:
-      set val(file_tag), file("${file_tag}.bam"), file("${file_tag}.bam.bai") into bam_files
+      set val(file_tag), val(rg) , file("${file_tag}.bam"), file("${file_tag}.bam.bai") into bam_files
       file("*Log*") into align_out
       set val(file_tag), file("*SJ.out.junction") into SJ_out
       file("*SJ.out.tab") into SJ_out_others
@@ -333,17 +369,25 @@ process alignment {
       }
             
       shell:
+      println !{rg}
+      println !{pair1}
       align_threads = params.cpu.intdiv(2)
       sort_threads = params.cpu.intdiv(2) - 1
       sort_mem     = params.mem.intdiv(4)
-
-      if(params.hisat2){
-            '''
-            hisat2 --rg-id !{file_tag} --rg SM:!{file_tag} --rg !{params.RG} --met-file hisat2.!{file_tag}.Log.final.out -p !{align_threads} -x !{params.hisat2_idx} -1 !{pairs5[0]} -2 !{pairs5[1]} | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
-	    '''
-      }else{
+      input_f1="${pair1[0]}"
+      input_f2="${pair2[0]}"
+      rgline="ID:${file_tag}_${rg[0]} SM:${file_tag} ${params.RG}"
+      for( p1tmp in pair1.drop(1) ){
+	input_f1=input_f1+",${p1tmp}"
+      }
+      for( p2tmp in pair2.drop(1) ){
+        input_f2=input_f2+",${p2tmp}"
+      }
+      for( rgtmp in rg.drop(1) ){
+        rgline=rgline+" , ID:${file_tag}_${rgtmp} SM:${file_tag} ${params.RG}"
+      }
       '''
-      STAR --outSAMattrRGline ID:!{file_tag} SM:!{file_tag} !{params.RG} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 100000 --alignIntronMax 100000 --alignSJstitchMismatchNmax 5 -1 5 5 --outSAMstrandField intronMotif --twopassMode Basic --runThreadN !{align_threads} --genomeDir . --sjdbGTFfile !{gtf} --readFilesCommand zcat --readFilesIn !{pairs5[0]} !{pairs5[1]} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+      STAR --outSAMattrRGline !{rgline} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 100000 --alignIntronMax 100000 --alignSJstitchMismatchNmax 5 -1 5 5 --outSAMstrandField intronMotif --chimMultimapScoreRange 10 --chimMultimapNmax 10 --chimNonchimScoreDropMin 10 --peOverlapNbasesMin 12 --peOverlapMMp 0.1 --chimOutJunctionFormat 1 --twopassMode Basic --outReadsUnmapped None --runThreadN !{align_threads} --genomeDir . --sjdbGTFfile !{gtf} --readFilesCommand zcat --readFilesIn !{input_f1} !{input_f2} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
       mv Chimeric.out.junction STAR.!{file_tag}.Chimeric.SJ.out.junction
       mv SJ.out.tab STAR.!{file_tag}.SJ.out.tab
       mv Log.final.out STAR.!{file_tag}.Log.final.out
@@ -351,7 +395,6 @@ process alignment {
       mv Log.progress.out    STAR.!{file_tag}.Log.progress.out
       mv Log.std.out STAR.!{file_tag}.Log.std.out
       '''
-      }
 }
 
 fasta_ref       = file(params.ref)
@@ -373,14 +416,14 @@ if(params.sjtrim){
       tag { file_tag }
       
       input:
-      set val(file_tag), file(bam), file(bai)  from bam_files
+      set val(file_tag), val(rg), file(bam), file(bai)  from bam_files
       file fasta_ref
       file fasta_ref_fai
       file fasta_ref_dict     
       file GATK_jar
             
       output:
-      set val(file_tag_new), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into bam_files2
+      set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into bam_files2
       if(params.recalibration == null){
         publishDir "${params.output_folder}/BAM", mode: 'copy'
       }
@@ -397,7 +440,7 @@ if(params.sjtrim){
 }
 
 
-//BQSrecalibration
+//BQSrecalibration GATK<4
 if(params.recalibration){
    GATK_jar     = file(params.GATK_jar)
    bundle_indel = Channel.fromPath(params.GATK_bundle + '/*indels*.vcf')
@@ -409,7 +452,7 @@ if(params.recalibration){
     	tag { file_tag }
         
     	input:
-	set val(file_tag), file(bam), file(bai) from bam_files2
+	set val(file_tag), val(rg) , file(bam), file(bai) from bam_files2
 	file fasta_ref
       	file fasta_ref_fai
 	file fasta_ref_dict
@@ -419,7 +462,7 @@ if(params.recalibration){
 	file dbsnp from bundle_dbsnp.collect()
 	
     	output:
-	set val(file_tag_new), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into recal_bam_files
+	set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into recal_bam_files
     	file("${file_tag}_recal.table") into recal_table_files
     	file("${file_tag}_post_recal.table") into recal_table_post_files
     	file("${file_tag}_recalibration_plots.pdf") into recal_plots_files
@@ -448,7 +491,7 @@ if(params.recalibration){
       recal_bam_files=bam_files2
 }
 
-recal_bam_files.into { recal_bam_files4QC; recal_bam_files4quant }
+recal_bam_files.into { recal_bam_files4QC; recal_bam_files4quant ; recal_bam4QCsplittmp }
 
 //RSEQC
 process RSEQC{
@@ -457,17 +500,55 @@ process RSEQC{
     		tag { file_tag }
         
 		input:
-    		set val(file_tag), file(bam), file(bai) from recal_bam_files4QC
+    		set val(file_tag), val(rg), file(bam), file(bai) from recal_bam_files4QC
 		file bed
 		
     		output:
 		file("${file_tag}_readdist.txt") into rseqc_files
+		file("*clipping*") into rseqc_clip_files
+		file("*jun_saturation*") into rseqc_jsat_files
     		publishDir "${params.output_folder}/QC/bam", mode: 'copy'
 
     		shell:
     		'''
-		read_distribution.py -i !{file_tag}".bam" -r !{bed} > !{file_tag}"_readdist.txt"
+		read_distribution.py -i !{bam} -r !{bed} > !{file_tag}"_readdist.txt"
+		clipping_profile.py  -i !{bam} -s "PE" -o !{file_tag}"_clipping"
+		junction_saturation.py -i !{bam} -r !{bed} -o !{file_tag}"_jun_saturation"
     		'''
+}
+
+recal_bam_files4QCsplit0     = Channel.create()
+recal_bam_files4QCsplit      = Channel.create()
+recal_bam_files4QCsplit4test = Channel.create()
+simple   = Channel.create()
+recal_bam4QCsplittmp.choice( simple,recal_bam_files4QCsplit0 ) { a -> a[1].size() == 1 ? 0 : 1 }
+recal_bam_files4QCsplit0.into( recal_bam_files4QCsplit , recal_bam_files4QCsplit4test)
+
+process RSEQCsplit{
+                cpus '1'
+                memory params.mem_QC+'GB'
+                tag { file_tag }
+
+                input:
+                set val(file_tag), val(rg), file(bam), file(bai) from recal_bam_files4QCsplit
+                file bed
+
+                output:
+                file("*readdist.txt") into rseqc_files_split
+                publishDir "${params.output_folder}/QC/bam", mode: 'copy'
+
+                shell:
+		basename = bam.baseName
+                '''
+                samtools split !{bam} -f "%*_%!.%."
+		for f in `ls !{basename}_*.bam`;
+		do read_distribution.py -i $f -r !{bed} > ${f%.bam}"_readdist.txt";
+		done
+		'''
+}
+
+if( recal_bam_files4QCsplit4test.ifEmpty(0)==0 ){
+	rseqc_files_split = ['NO_FILE']
 }
 
 //Quantification
@@ -483,7 +564,7 @@ process quantification{
     	tag { file_tag }
         
     	input:
-    	set val(file_tag), file(bam), file(bai) from recal_bam_files4quant
+    	set val(file_tag), val(rg), file(bam), file(bai) from recal_bam_files4quant
 	file gtf
 
     	output:
@@ -541,9 +622,12 @@ process multiqc_posttrim {
     input:
     file STAR from align_out.collect()
     file htseq from htseq_files.collect()
+    file rseqc_clip from rseqc_clip_files.collect()
     file rseqc from rseqc_files.collect()
+    file rseqc_jsat from rseqc_jsat_files.collect()
     file trim from trimming_reports.collect()
     file fastqcpost from fastqc_postpairs.collect()
+    file rseqc_split from rseqc_files_split.collect()
         
     output:
     file("multiqc_posttrim_report.html") into multiqc_post

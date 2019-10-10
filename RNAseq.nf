@@ -310,8 +310,8 @@ if(params.cutadapt!=null){
 	}
 }else{
 	readPairs3 = readPairs2
-	fastqc_postpairs=null
-	trimming_reports=null
+	fastqc_postpairs=Channel.empty()
+	trimming_reports=Channel.empty()
 }
 
 readPairs_align = Channel.create()
@@ -535,7 +535,7 @@ process RSEQCsplit{
 if( recal_bam_files4QCsplit4test.ifEmpty(0)==0 ){
 	recal_bam_files4QCsplit4test.subscribe { row -> println "${row}" }
 	println("No files to split")
-	rseqc_files_split = ['NO_FILE']
+	rseqc_files_split = Channel.empty()
 }
 
 //Quantification
@@ -615,8 +615,8 @@ process multiqc_posttrim {
     file rseqc_clip from rseqc_clip_files.collect()
     file rseqc from rseqc_files.collect()
     file rseqc_jsat from rseqc_jsat_files.collect()
-    file trim from trimming_reports.collect()
-    file fastqcpost from fastqc_postpairs.collect()
+    file trim from trimming_reports.collect().ifEmpty([])
+    file fastqcpost from fastqc_postpairs.collect().ifEmpty([])
     file rseqc_split from rseqc_files_split.collect().ifEmpty([])
     file multiqc_config from ch_config_for_multiqc
         

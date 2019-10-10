@@ -592,7 +592,7 @@ process multiqc_pretrim {
     publishDir "${params.output_folder}/QC", mode: 'copy'
 
     shell:
-    if( multiqc_config=='NO_FILE' ){
+    if( multiqc_config.name=='NO_FILE' ){
         opt = ""
     }else{
         opt = '--config ${multiqc_config}'
@@ -627,7 +627,7 @@ process multiqc_posttrim {
     publishDir "${params.output_folder}/QC", mode: 'copy'
 
     shell:
-    if( multiqc_config=='NO_FILE' ){
+    if( multiqc_config.name=='NO_FILE' ){
 	opt = ""
     }else{
 	opt = '--config ${multiqc_config}'

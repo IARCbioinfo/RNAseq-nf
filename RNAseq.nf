@@ -33,12 +33,8 @@ params.GATK_bundle  = "GATK_bundle"
 params.RG           = "PL:ILLUMINA"
 params.stranded     = "no"
 params.hisat2_idx   = "genome_tran"
-params.clustering_n = 500 
-params.clustering_t = "vst"
-params.clustering_c = "hc"
-params.clustering_l = "complete"
 params.cpu_trim     = 15
-
+params.multiqc_config = null
 params.sjtrim       = null
 params.recalibration= null
 params.hisat2       = null
@@ -150,6 +146,13 @@ params.help         = null
   log.info "help=${params.help}"
 }
 
+//multiqc config file
+if(params.multiqc_config){
+	ch_config_for_multiqc = file(params.multiqc_config)
+}else{
+	ch_config_for_multiqc = 'NO_FILE'
+}
+
 //read ref files
 if(params.hisat2){
 	ref_1  = Channel.fromPath(params.ref_folder + '/' + params.hisat2_idx + '.1.ht2')
@@ -227,7 +230,7 @@ if(mode=='bam'){
         set val(file_tag) , val(rg), file(infile) from files
      
         output:
-	set val(file_tag), val(file_tag), file("${file_tag}_1.fq.gz"), file("${file_tag}_2.fq.gz")  into readPairs
+	set val(file_tag), val(file_tag), file("${file_tag}_1.fq.gz"), file("${file_tag}_2.fq.gz")  into readPairs0
 
         shell:
 	file_tag = infile.baseName
@@ -239,6 +242,7 @@ if(mode=='bam'){
 	gzip !{file_tag}_2.fq
         '''
     }
+    readPairs0.into{ readPairs ; readPairs2}
 }else{
 if(mode=='fastq'){
     println "fastq mode"
@@ -248,7 +252,6 @@ if(mode=='fastq'){
     keys2 = file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.suffix2}.${params.fastq_ext}/ }.collect { it.getName() }
                                                                                                                .collect { it.replace("${params.suffix2}.${params.fastq_ext}",'') }
     if ( !(keys1.containsAll(keys2)) || !(keys2.containsAll(keys1)) ) {println "\n ERROR : There is not at least one fastq without its mate, please check your fastq files."; System.exit(0)}
-    println keys1
 
 // Gather files ending with _1 suffix
    reads1 = Channel
@@ -266,7 +269,7 @@ if(mode=='fastq'){
     .map { pair1, pair2 -> [ pair1[0] , pair1[0] , pair1[1], pair2[1] ] }
     .into{ readPairs ; readPairs2}
 
-    println reads1
+    //println reads1
 }
 }
 
@@ -517,10 +520,7 @@ process RSEQC{
     		'''
 }
 
-recal_bam_files4QCsplit0     = Channel.create()
-recal_bam_files4QCsplit      = Channel.create()
-recal_bam_files4QCsplit4test = Channel.create()
-simple   = Channel.create()
+
 recal_bam4QCsplittmp.choice( simple,recal_bam_files4QCsplit0 ) { a -> a[1].size() == 1 ? 0 : 1 }
 recal_bam_files4QCsplit0.into( recal_bam_files4QCsplit , recal_bam_files4QCsplit4test)
 
@@ -548,6 +548,8 @@ process RSEQCsplit{
 }
 
 if( recal_bam_files4QCsplit4test.ifEmpty(0)==0 ){
+	recal_bam_files4QCsplit4test.subscribe { row -> println "${row}" }
+	println("No files to split")
 	rseqc_files_split = ['NO_FILE']
 }
 
@@ -597,16 +599,18 @@ process multiqc_pretrim {
         
     input:
     file fastqc1 from fastqc_pairs.collect()
-        
+    file multiqc_config from ch_config_for_multiqc    
+    
     output:
     file("multiqc_pretrim_report.html") into multiqc_pre
     file("multiqc_pretrim_report_data") into multiqc_pre_data
     publishDir "${params.output_folder}/QC", mode: 'copy'
 
     shell:
+    def opt = multiqc_config.name != 'NO_FILE' ? "--config !{multiqc_config}" : ''
     '''
     for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;
-    multiqc . -n multiqc_pretrim_report.html -m fastqc
+    multiqc . -n multiqc_pretrim_report.html -m fastqc !{opt} --comment "RNA-seq Pre-trimming QC report"
     '''
 }
 
@@ -620,14 +624,15 @@ process multiqc_posttrim {
     tag { "all"}
         
     input:
-    file STAR from align_out.collect()
-    file htseq from htseq_files.collect()
-    file rseqc_clip from rseqc_clip_files.collect()
-    file rseqc from rseqc_files.collect()
-    file rseqc_jsat from rseqc_jsat_files.collect()
-    file trim from trimming_reports.collect()
-    file fastqcpost from fastqc_postpairs.collect()
-    file rseqc_split from rseqc_files_split.collect()
+    file STAR from align_out.collect().ifEmpty([])
+    file htseq from htseq_files.collect().ifEmpty([])
+    file rseqc_clip from rseqc_clip_files.collect().ifEmpty([])
+    file rseqc from rseqc_files.collect().ifEmpty([])
+    file rseqc_jsat from rseqc_jsat_files.collect().ifEmpty([])
+    file trim from trimming_reports.collect().ifEmpty([])
+    file fastqcpost from fastqc_postpairs.collect().ifEmpty([])
+    file rseqc_split from rseqc_files_split.collect().ifEmpty([])
+    file multiqc_config from ch_config_for_multiqc2
         
     output:
     file("multiqc_posttrim_report.html") into multiqc_post
@@ -636,28 +641,9 @@ process multiqc_posttrim {
     publishDir "${params.output_folder}/QC", mode: 'copy'
 
     shell:
+    def opt = multiqc_config.name != 'NO_FILE' ? "--config !{multiqc_config}" : ''
     '''
     for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;
-    multiqc . -n multiqc_posttrim_report.html -m fastqc -m cutadapt -m star -m rseqc -m htseq
+    multiqc . -n multiqc_posttrim_report.html -m fastqc -m cutadapt -m star -m rseqc -m htseq !{opt} --comment "RNA-seq Post-trimming QC report"
     '''
-}
-
-if(params.clustering){
-   process clustering {
-    	cpus params.cpu
-	memory params.mem_QC+'G'
-    	tag { "all" }
-        
-    	input:
-	file htseq from htseq_files4clust.collect()
-	output:
-    	file("unsupervised_analysis") into unsup_res
-
-	publishDir params.output_folder, mode: 'move'
-
-    	shell:
-    	'''
-	RNAseq_unsupervised.R -o unsupervised_analysis -n !{params.clustering_n} -t !{params.clustering_t} -c !{params.clustering_c} -l !{params.clustering_l}
-    	'''
-   }
 }

@@ -1,7 +1,0 @@
-name: rnaseq_htseq
-channels:
-  - conda-forge
-  - bioconda
-  - defaults
-dependencies:
-  - htseq=0.11.2

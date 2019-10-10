@@ -38,7 +38,6 @@ params.multiqc_config = null
 params.sjtrim       = null
 params.recalibration= null
 params.hisat2       = null
-params.clustering   = null
 
 params.cutadapt     = null
 
@@ -86,29 +85,20 @@ if (params.help) {
     log.info '    --GATK_jar        STRING                path to GATK GenomeAnalysisTK.jar file (default : .)'
     log.info '    --stranded        STRING                are reads stranded? (default : no; alternatives : yes, r)'
     log.info '    --hisat2_idx        STRING                hisat2 index file prefix (default : genome_tran)'
-    log.info '    --clustering_n        INTEGER               number of genes to use for clustering  (default : 500)'
-    log.info '    --clustering_t        STRING                count transformation method; rld, vst, or auto (default : vst)'
-    log.info '    --clustering_c        STRING                clustering algorithm to be passed to ConsensusClusterPlus (default : hc)'
-    log.info '    --clustering_l        STRING                method for hierarchical clustering to be passed to ConsensusClusterPlus (default : complete)'
     log.info ''
     log.info 'Flags:'
     log.info '    --sjtrim                    enable splice junction trimming'
     log.info '    --recalibration                    performs base quality score recalibration (GATK)'
     log.info '    --hisat2                    use hisat2 instead of STAR for reads mapping'
-    log.info '    --clustering                    perform unsupervised analysis of read counts'
     log.info '    --cutadapt                  perform adapter sequence trimming'
     log.info ''
     exit 0
 
-params.clustering_n = 500 
-params.clustering_t = "vst"
-params.clustering_c = "hc"
-params.clustering_l = "complete"
+
 
 params.sjtrim       = null
 params.recalibration = null
 params.hisat2       = null
-params.clustering   = null
 
 params.htseq_maxreads = null //default value of htseq-count is 30000000
 params.help         = null
@@ -116,7 +106,7 @@ params.help         = null
 }else {
   /* Software information */
   log.info "input_folder = ${params.input_folder}"
-  log.info "input_file=${params.input_file}"
+  log.info "input_file   = ${params.input_file}"
   log.info "ref          = ${params.ref}"
   log.info "cpu          = ${params.cpu}"
   log.info "mem          = ${params.mem}"
@@ -135,14 +125,9 @@ params.help         = null
   log.info "hisat2_idx   = ${params.hisat2_idx}"
   log.info "sjtrim       = ${params.sjtrim}"
   log.info "hisat2       = ${params.hisat2}"
-  log.info "clustering   = ${params.clustering}"
   log.info "htseq_maxreads=${params.htseq_maxreads}"
   log.info "recalibration= ${params.recalibration}"
 
-  log.info "clustering_n = ${params.clustering_n}"
-  log.info "clustering_t = ${params.clustering_t}"
-  log.info "clustering_c = ${params.clustering_c}"
-  log.info "clustering_l = ${params.clustering_l}"
   log.info "help=${params.help}"
 }
 
@@ -521,6 +506,10 @@ process RSEQC{
 }
 
 
+simple = Channel.create()
+recal_bam_files4QCsplit0 = Channel.create()
+recal_bam_files4QCsplit = Channel.create()
+recal_bam_files4QCsplit4test = Channel.create()
 recal_bam4QCsplittmp.choice( simple,recal_bam_files4QCsplit0 ) { a -> a[1].size() == 1 ? 0 : 1 }
 recal_bam_files4QCsplit0.into( recal_bam_files4QCsplit , recal_bam_files4QCsplit4test)
 
@@ -607,15 +596,16 @@ process multiqc_pretrim {
     publishDir "${params.output_folder}/QC", mode: 'copy'
 
     shell:
-    def opt = multiqc_config.name != 'NO_FILE' ? "--config !{multiqc_config}" : ''
+    if( multiqc_config=='NO_FILE' ){
+        opt = ""
+    }else{
+        opt = '--config'+ multiqc_config
+    }
     '''
     for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;
     multiqc . -n multiqc_pretrim_report.html -m fastqc !{opt} --comment "RNA-seq Pre-trimming QC report"
     '''
 }
-
-
-if(params.clustering) htseq_files.into { htseq_files ; htseq_files4clust }
 
 
 process multiqc_posttrim {
@@ -624,15 +614,15 @@ process multiqc_posttrim {
     tag { "all"}
         
     input:
-    file STAR from align_out.collect().ifEmpty([])
-    file htseq from htseq_files.collect().ifEmpty([])
-    file rseqc_clip from rseqc_clip_files.collect().ifEmpty([])
-    file rseqc from rseqc_files.collect().ifEmpty([])
-    file rseqc_jsat from rseqc_jsat_files.collect().ifEmpty([])
-    file trim from trimming_reports.collect().ifEmpty([])
-    file fastqcpost from fastqc_postpairs.collect().ifEmpty([])
+    file STAR from align_out.collect()
+    file htseq from htseq_files.collect()
+    file rseqc_clip from rseqc_clip_files.collect()
+    file rseqc from rseqc_files.collect()
+    file rseqc_jsat from rseqc_jsat_files.collect()
+    file trim from trimming_reports.collect()
+    file fastqcpost from fastqc_postpairs.collect()
     file rseqc_split from rseqc_files_split.collect().ifEmpty([])
-    file multiqc_config from ch_config_for_multiqc2
+    file multiqc_config from ch_config_for_multiqc
         
     output:
     file("multiqc_posttrim_report.html") into multiqc_post
@@ -641,7 +631,11 @@ process multiqc_posttrim {
     publishDir "${params.output_folder}/QC", mode: 'copy'
 
     shell:
-    def opt = multiqc_config.name != 'NO_FILE' ? "--config !{multiqc_config}" : ''
+    if( multiqc_config=='NO_FILE' ){
+	opt = ""
+    }else{
+	opt = '--config'+ multiqc_config
+    }
     '''
     for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;
     multiqc . -n multiqc_posttrim_report.html -m fastqc -m cutadapt -m star -m rseqc -m htseq !{opt} --comment "RNA-seq Post-trimming QC report"

@@ -34,7 +34,7 @@ params.RG           = "PL:ILLUMINA"
 params.stranded     = "no"
 params.hisat2_idx   = "genome_tran"
 params.cpu_trim     = 15
-params.multiqc_config = null
+params.multiqc_config = 'NO_FILE'
 params.sjtrim       = null
 params.recalibration= null
 params.hisat2       = null
@@ -132,11 +132,7 @@ params.help         = null
 }
 
 //multiqc config file
-if(params.multiqc_config){
-	ch_config_for_multiqc = file(params.multiqc_config)
-}else{
-	ch_config_for_multiqc = 'NO_FILE'
-}
+ch_config_for_multiqc = file(params.multiqc_config)
 
 //read ref files
 if(params.hisat2){
@@ -599,7 +595,7 @@ process multiqc_pretrim {
     if( multiqc_config=='NO_FILE' ){
         opt = ""
     }else{
-        opt = '--config'+ multiqc_config
+        opt = '--config ${multiqc_config}'
     }
     '''
     for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;
@@ -634,7 +630,7 @@ process multiqc_posttrim {
     if( multiqc_config=='NO_FILE' ){
 	opt = ""
     }else{
-	opt = '--config'+ multiqc_config
+	opt = '--config ${multiqc_config}'
     }
     '''
     for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;

@@ -21,6 +21,7 @@ params.gtf          = null
 params.bed          = null
 
 params.cpu          = 4
+params.cpu_gatk          = 1
 params.mem          = 50
 params.mem_QC       = 2
 params.fastq_ext    = "fq.gz"
@@ -28,8 +29,8 @@ params.suffix1      = "_1"
 params.suffix2      = "_2"
 params.output_folder= "."
 params.ref          = "ref.fa"
-params.GATK_jar     = "GenomeAnalysisTK.jar"
-params.GATK_bundle  = "GATK_bundle"
+params.snp_vcf      = "dbsnp.vcf"
+params.indel_vcf    = "Mills_1000G_indels.vcf"
 params.RG           = "PL:ILLUMINA"
 params.stranded     = "no"
 params.hisat2_idx   = "genome_tran"
@@ -72,19 +73,19 @@ if (params.help) {
     log.info '    --bed        STRING                bed file with interval list'
     log.info ""
     log.info 'Optional arguments:'
-    log.info '    --ref          FILE                    Reference fasta file (with index) for splice junction trimming and base recalibration.'
-    log.info '    --output_folder     STRING                Output folder (default: results_alignment).'
-    log.info '    --cpu          INTEGER                 Number of cpu used by bwa mem and sambamba (default: 8).'
-    log.info '    --mem          INTEGER                 Size of memory used for mapping (in GB) (default: 32).'
-    log.info '    --mem_QC     INTEGER                 Size of memory used for QC and cutadapt (in GB) (default: 32).'
-    log.info '    --RG           STRING                  Samtools read group specification (default : PL:ILLUMINA).'
-    log.info '    --fastq_ext        STRING                Extension of fastq files (default : fq.gz)'
+    log.info '    --ref            FILE                    Reference fasta file (with index) for splice junction trimming and base recalibration.'
+    log.info '    --output_folder  STRING                Output folder (default: results_alignment).'
+    log.info '    --cpu            INTEGER                 Number of cpu used by bwa mem and sambamba (default: 8).'
+    log.info '    --mem            INTEGER                 Size of memory used for mapping (in GB) (default: 32).'
+    log.info '    --mem_QC         INTEGER                 Size of memory used for QC and cutadapt (in GB) (default: 32).'
+    log.info '    --RG             STRING                  Samtools read group specification (default : PL:ILLUMINA).'
+    log.info '    --fastq_ext      STRING                Extension of fastq files (default : fq.gz)'
     log.info '    --suffix1        STRING                Suffix of fastq files 1 (default : _1)'
     log.info '    --suffix2        STRING                Suffix of fastq files 2 (default : _2)'
-    log.info '    --GATK_bundle        STRING                path to GATK bundle files (default : .)'
-    log.info '    --GATK_jar        STRING                path to GATK GenomeAnalysisTK.jar file (default : .)'
-    log.info '    --stranded        STRING                are reads stranded? (default : no; alternatives : yes, r)'
-    log.info '    --hisat2_idx        STRING                hisat2 index file prefix (default : genome_tran)'
+    log.info '    --snp_vcf        STRING              path to SNP VCF from GATK bundle (default : dbsnp.vcf)'
+    log.info '    --indel_vcf      STRING              path to indel VCF from GATK bundle (default : Mills_1000G_indels.vcf)'
+    log.info '    --stranded       STRING                are reads stranded? (default : no; alternatives : yes, r)'
+    log.info '    --hisat2_idx     STRING                hisat2 index file prefix (default : genome_tran)'
     log.info ''
     log.info 'Flags:'
     log.info '    --sjtrim                    enable splice junction trimming'
@@ -115,8 +116,6 @@ params.help         = null
   log.info "suffix2      = ${params.suffix2}"
   log.info "output_folder= ${params.output_folder}"
   log.info "bed          = ${params.bed}"
-  log.info "GATK_bundle  = ${params.GATK_bundle}"
-  log.info "GATK_jar     = ${params.GATK_jar}"
   log.info "mem_QC       = ${params.mem_QC}"
   log.info "ref_folder   = ${params.ref_folder}"
   log.info "gtf          = ${params.gtf}"
@@ -127,6 +126,8 @@ params.help         = null
   log.info "hisat2       = ${params.hisat2}"
   log.info "htseq_maxreads=${params.htseq_maxreads}"
   log.info "recalibration= ${params.recalibration}"
+  log.info "snp_vcf= ${params.snp_vcf}"
+  log.info "indel_vcf= ${params.indel_vcf}"
 
   log.info "help=${params.help}"
 }
@@ -162,7 +163,6 @@ if(params.hisat2){
 	ref_14 = Channel.fromPath(params.ref_folder +'/sjdbList.fromGTF.out.tab')
 	ref_15 = Channel.fromPath(params.ref_folder +'/sjdbList.out.tab')
 	ref    = ref_1.concat( ref_2,ref_3,ref_4,ref_5,ref_6,ref_7,ref_8,ref_9,ref_10,ref_11,ref_12,ref_13,ref_14,ref_15)
-	//ref.into { ref_align; ref_fusion }
 }
 
 
@@ -176,16 +176,6 @@ if(params.input_file){
      	       .splitCsv( header: true, sep: '\t', strip: true )
 	       .map { row -> [ row.SM , row.RG , file(row.pair1), file(row.pair2) ] }
 	       .into{ readPairs ; readPairs2}
-	//readPairs2merge = readPairstmp.groupTuple(by: 0)
-    	//            		      .map { row -> tuple(row[0] , row[1] , row[1][0], row[2][0], row[3][0])  }
-	//single   = Channel.create()
-	//multiple = Channel.create()
-	//multiple1 = Channel.create()
-	//multiple2 = Channel.create()
-	//readPairs2merge.choice( single,multiple ) { a -> a[1].size() == 1 ? 0 : 1 }
-	//single2 = single.map { row -> tuple(row[0] , 1 , row[1][0], row[2][0], row[3][0])  }
-	//multiple.separate(multiple1,multiple2){ row -> [ [row[0] , row[1].size() ,  row[1][0], row[2][0], row[3][0]] , [row[0] , 2 , row[1][1], row[2][1],  row[3][1]] ] }
-	//readPairs=single2.concat(multiple1 ,multiple2 )*/
 }else{
 	mode = 'fastq'
 	if (file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.fastq_ext}/ }.size() > 0){
@@ -249,8 +239,6 @@ if(mode=='fastq'){
     .phase(reads2)
     .map { pair1, pair2 -> [ pair1[0] , pair1[0] , pair1[1], pair2[1] ] }
     .into{ readPairs ; readPairs2}
-
-    //println reads1
 }
 }
 
@@ -298,12 +286,9 @@ if(params.cutadapt!=null){
 	    publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: '{*report.txt,*fastqc.zip}'
 	    
             shell:
-	    cpu_tg = params.cpu_trim -1 
-	    println cpu_tg
+	    cpu_tg = params.cpu_trim -1
 	    cpu_tg2 = cpu_tg.div(3.5)
-	    //println cpu_tg2
 	    cpu_tg3 = Math.round(Math.ceil(cpu_tg2))
-	    println cpu_tg3
             '''
 	    trim_galore --paired --fastqc --basename !{file_tag}_!{rg} -j !{cpu_tg3} !{pair1} !{pair2}
             '''
@@ -314,14 +299,8 @@ if(params.cutadapt!=null){
 	trimming_reports=Channel.empty()
 }
 
-readPairs_align = Channel.create()
-readPairs_align2print = Channel.create()
-readPairs_aligntmp = readPairs3.groupTuple(by: 0)
-			       .into(readPairs_align,readPairs_align2print)
+readPairs_align = readPairs3.groupTuple(by: 0)
 
-readPairs_align2print.subscribe { row -> println "${row}" }
-
-//                            .map { row -> tuple(row[0] , row[1], row[2] , row[3][0] , row[4][0]  ) }
 
 //Mapping, mark duplicates and sorting
 process alignment {
@@ -353,8 +332,6 @@ process alignment {
       }
             
       shell:
-      println !{rg}
-      println !{pair1}
       align_threads = params.cpu.intdiv(2)
       sort_threads = params.cpu.intdiv(2) - 1
       sort_mem     = params.mem.intdiv(4)
@@ -392,10 +369,9 @@ if( (params.sjtrim!=null)||(params.recalibration!=null) ){
 
 //Splice junctions trimming
 if(params.sjtrim){
-   GATK_jar=file(params.GATK_jar)
    
    process splice_junct_trim {
-      cpus params.cpu
+      cpus params.cpu_gatk
       memory params.mem+'G'
       tag { file_tag }
       
@@ -404,7 +380,6 @@ if(params.sjtrim){
       file fasta_ref
       file fasta_ref_fai
       file fasta_ref_dict     
-      file GATK_jar
             
       output:
       set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into bam_files2
@@ -415,7 +390,7 @@ if(params.sjtrim){
       shell:
       file_tag_new = file_tag+'_split'
       '''
-      java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T SplitNCigarReads -R !{fasta_ref} -I !{bam} -o !{file_tag_new}.bam -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
+      gatk SplitNCigarReads --java-options "-Xmx!{params.mem}G" -R !{fasta_ref} -I !{bam} -O !{file_tag_new}.bam
       mv !{file_tag_new}.bai !{file_tag_new}.bam.bai
       '''
    }
@@ -424,52 +399,51 @@ if(params.sjtrim){
 }
 
 
-//BQSrecalibration GATK<4
+//BQSrecalibration GATK4
 if(params.recalibration){
-   GATK_jar     = file(params.GATK_jar)
-   bundle_indel = Channel.fromPath(params.GATK_bundle + '/*indels*.vcf')
-   bundle_dbsnp = Channel.fromPath(params.GATK_bundle + '/*dbsnp*.vcf')
+   //get know site VCFs from GATK bundle
+   known_snps         = file( params.snp_vcf )
+   known_snps_index   = file( params.snp_vcf+'.tbi' )
+   known_indels       = file( params.indel_vcf )
+   known_indels_index = file( params.indel_vcf+'.tbi' )
 
    process base_quality_score_recalibration {
-    	cpus params.cpu
+    	cpus params.cpu_gatk
 	memory params.mem+'G'
     	tag { file_tag }
         
-    	input:
-	set val(file_tag), val(rg) , file(bam), file(bai) from bam_files2
-	file fasta_ref
-      	file fasta_ref_fai
-	file fasta_ref_dict
-      	file bed
-	file GATK_jar
-    	file indel from bundle_indel.collect()
-	file dbsnp from bundle_dbsnp.collect()
-	
-    	output:
-	set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into recal_bam_files
-    	file("${file_tag}_recal.table") into recal_table_files
-    	file("${file_tag}_post_recal.table") into recal_table_post_files
-    	file("${file_tag}_recalibration_plots.pdf") into recal_plots_files
-    	publishDir params.output_folder, mode: 'copy', saveAs: {filename ->
-                 if (filename.indexOf(".bam") > 0)                      "BAM/$filename"
-            else "QC/BQSR/$filename"
-        }
+	publishDir "$params.output_folder/BAM/", mode: 'copy', pattern: "*bam*"
+	publishDir "$params.output_folder/QC/BAM/BQSR/", mode: 'copy',
+	saveAs: {filename -> 
+		if (filename.indexOf("table") > 0) "$filename"
+		else if (filename.indexOf("plots") > 0) "$filename"
+		else null
+	}
 
-    	shell:
-	file_tag_new = file_tag+'_recal'
-    	'''
-    	indelsvcf=(`ls *indels*.vcf`)
-    	dbsnpvcfs=(`ls *dbsnp*.vcf`)
-    	dbsnpvcf=${dbsnpvcfs[@]:(-1)}
-    	knownSitescom=''
-    	for ll in $indelsvcf; do knownSitescom=$knownSitescom' -knownSites:VCF '$ll; done
-    	knownSitescom=$knownSitescom' -knownSites:VCF '$dbsnpvcf
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T BaseRecalibrator -filterRNC -nct !{params.cpu} -R !{fasta_ref} -I !{file_tag}.bam $knownSitescom -L !{bed} -o !{file_tag}_recal.table
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T BaseRecalibrator -filterRNC -nct !{params.cpu} -R !{fasta_ref} -I !{file_tag}.bam $knownSitescom -BQSR !{file_tag}_recal.table -L !{bed} -o !{file_tag}_post_recal.table		
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T AnalyzeCovariates -R !{fasta_ref} -before !{file_tag}_recal.table -after !{file_tag}_post_recal.table -plots !{file_tag}_recalibration_plots.pdf	
-    	java -Xmx!{params.mem}g -Djava.io.tmpdir=. -jar !{GATK_jar} -T PrintReads -filterRNC -nct !{params.cpu} -R !{fasta_ref} -I !{file_tag}.bam -BQSR !{file_tag_new}.table -L !{bed} -o !{file_tag_new}.bam
-    	mv !{file_tag_new}.bai !{file_tag_new}.bam.bai
-    	'''
+    input:
+    set val(file_tag), val(rg), file("${file_tag}.bam"), file("${file_tag}.bam.bai") from bam_files2
+    file known_snps
+    file known_snps_index
+    file known_indels
+    file known_indels_index
+    file fasta_ref
+    file fasta_ref_fai
+    file fasta_ref_dict
+
+    output:
+    file("*_recal.table") into recal_table_files
+    file("*plots.pdf") into recal_plots_files
+    set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into recal_bam_files
+
+    shell:
+    file_tag_new=file_tag+'_BQSRecalibrated'
+    '''
+    gatk BaseRecalibrator --java-options "-Xmx!{params.mem}G" -R !{fasta_ref} -I !{file_tag}.bam --known-sites !{known_snps} --known-sites !{known_indels} -O !{file_tag}_recal.table
+    gatk ApplyBQSR --java-options "-Xmx!{params.mem}G" -R !{fasta_ref} -I !{file_tag}.bam --bqsr-recal-file !{file_tag}_recal.table -O !{file_tag_new}.bam
+    gatk BaseRecalibrator --java-options "-Xmx!{params.mem}G" -R !{fasta_ref} -I !{file_tag_new}.bam --known-sites !{known_snps} --known-sites !{known_indels} -O !{file_tag_new}_recal.table		
+    gatk AnalyzeCovariates --java-options "-Xmx!{params.mem}G" -before !{file_tag}_recal.table -after !{file_tag_new}_recal.table -plots !{file_tag_new}_recalibration_plots.pdf	
+    mv !{file_tag_new}.bai !{file_tag_new}.bam.bai
+    '''
    }
 }else{      
       recal_bam_files=bam_files2

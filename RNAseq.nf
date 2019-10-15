@@ -35,20 +35,21 @@ params.RG           = "PL:ILLUMINA"
 params.stranded     = "no"
 params.hisat2_idx   = "genome_tran"
 params.cpu_trim     = 15
+params.htseq_maxreads = null //default value of htseq-count is 30000000
 params.multiqc_config = 'NO_FILE'
 params.sjtrim       = null
 params.recalibration= null
-params.hisat2       = null
 
 params.cutadapt     = null
-
-params.htseq_maxreads= null //default value of htseq-count is 30000000
+params.sjtrim       = null
+params.recalibration = null
+params.hisat2       = null
 params.help         = null
 
 
 log.info "" 
 log.info "--------------------------------------------------------"
-log.info "  RNAseq-nf 1.0.0: alignment, QC, and reads counting workflow for RNA sequencing "
+log.info "  RNAseq-nf 2.1.0: alignment, QC, and reads counting workflow for RNA sequencing "
 log.info "--------------------------------------------------------"
 log.info "Copyright (C) IARC/WHO"
 log.info "This program comes with ABSOLUTELY NO WARRANTY; for details see LICENSE"
@@ -66,70 +67,68 @@ if (params.help) {
     log.info 'nextflow run iarcbioinfo/RNAseq.nf [-with-docker] --input_folder input/ --ref_folder ref/ [OPTIONS]'
     log.info ''
     log.info 'Mandatory arguments:'
-    log.info '    --input_folder   FOLDER                  Folder containing BAM or fastq files to be aligned.'
-    log.info '--input_file     STRING              Input file (comma-separated) with 3 columns:'
-    log.info '    --ref_folder          FOLDER                   Folder with genome reference files (with index).'
-    log.info '    --gtf          FILE                    Annotation file.'
-    log.info '    --bed        STRING                bed file with interval list'
+    log.info '    --input_folder   FOLDER                 Folder containing BAM or fastq files to be aligned.'
+    log.info '    --input_file     STRING                 Input file (tab-separated values) with 4 columns: SM (sample name), RG (read group), pair1 (first fastq pair file), and pair2 (second fastq pair file)'
+    log.info '    --ref_folder     FOLDER                 Folder with genome reference files (with index).'
+    log.info '    --gtf            FILE                   Annotation file.'
+    log.info '    --bed            STRING                 bed file with interval list'
     log.info ""
     log.info 'Optional arguments:'
-    log.info '    --ref            FILE                    Reference fasta file (with index) for splice junction trimming and base recalibration.'
-    log.info '    --output_folder  STRING                Output folder (default: results_alignment).'
-    log.info '    --cpu            INTEGER                 Number of cpu used by bwa mem and sambamba (default: 8).'
-    log.info '    --mem            INTEGER                 Size of memory used for mapping (in GB) (default: 32).'
-    log.info '    --mem_QC         INTEGER                 Size of memory used for QC and cutadapt (in GB) (default: 32).'
-    log.info '    --RG             STRING                  Samtools read group specification (default : PL:ILLUMINA).'
-    log.info '    --fastq_ext      STRING                Extension of fastq files (default : fq.gz)'
-    log.info '    --suffix1        STRING                Suffix of fastq files 1 (default : _1)'
-    log.info '    --suffix2        STRING                Suffix of fastq files 2 (default : _2)'
-    log.info '    --snp_vcf        STRING              path to SNP VCF from GATK bundle (default : dbsnp.vcf)'
-    log.info '    --indel_vcf      STRING              path to indel VCF from GATK bundle (default : Mills_1000G_indels.vcf)'
-    log.info '    --stranded       STRING                are reads stranded? (default : no; alternatives : yes, r)'
-    log.info '    --hisat2_idx     STRING                hisat2 index file prefix (default : genome_tran)'
+    log.info '    --ref            FILE                   Reference fasta file (with index) for splice junction trimming and base recalibration.'
+    log.info '    --output_folder  STRING                 Output folder (default: results_alignment).'
+    log.info '    --cpu            INTEGER                Number of cpu used by bwa mem and sambamba (default: 8).'
+    log.info '    --cpu_gatk       INTEGER                Number of cpu used by gatk (default: 1).'
+    log.info '    --cpu_trim       INTEGER                Number of cpu used by cutadapt (default: 15).'
+    log.info '    --mem            INTEGER                Size of memory used for mapping (in GB) (default: 32).'
+    log.info '    --mem_QC         INTEGER                Size of memory used for QC and cutadapt (in GB) (default: 32).'
+    log.info '    --RG             STRING                 Samtools read group specification (default : PL:ILLUMINA).'
+    log.info '    --fastq_ext      STRING                 Extension of fastq files (default : fq.gz)'
+    log.info '    --suffix1        STRING                 Suffix of fastq files 1 (default : _1)'
+    log.info '    --suffix2        STRING                 Suffix of fastq files 2 (default : _2)'
+    log.info '    --htseq_maxreads INTEGER		  Maximum number of reads taken into account by htseq-count (default: htseq-count default)'
+    log.info '    --snp_vcf        STRING                 path to SNP VCF from GATK bundle (default : dbsnp.vcf)'
+    log.info '    --indel_vcf      STRING                 path to indel VCF from GATK bundle (default : Mills_1000G_indels.vcf)'
+    log.info '    --stranded       STRING                 are reads stranded? (default : no; alternatives : yes, r)'
+    log.info '    --hisat2_idx     STRING                 hisat2 index file prefix (default : genome_tran)'
+    log.info '    --multiqc_config STRING                 config yaml file for multiqc (default : none)'
     log.info ''
     log.info 'Flags:'
-    log.info '    --sjtrim                    enable splice junction trimming'
-    log.info '    --recalibration                    performs base quality score recalibration (GATK)'
-    log.info '    --hisat2                    use hisat2 instead of STAR for reads mapping'
-    log.info '    --cutadapt                  perform adapter sequence trimming'
+    log.info '    --sjtrim                                enable splice junction trimming'
+    log.info '    --recalibration                         performs base quality score recalibration (GATK)'
+    log.info '    --hisat2                                use hisat2 instead of STAR for reads mapping'
+    log.info '    --cutadapt                              perform adapter sequence trimming'
     log.info ''
     exit 0
 
-
-
-params.sjtrim       = null
-params.recalibration = null
-params.hisat2       = null
-
-params.htseq_maxreads = null //default value of htseq-count is 30000000
-params.help         = null
-
 }else {
   /* Software information */
-  log.info "input_folder = ${params.input_folder}"
-  log.info "input_file   = ${params.input_file}"
-  log.info "ref          = ${params.ref}"
-  log.info "cpu          = ${params.cpu}"
-  log.info "mem          = ${params.mem}"
-  log.info "fastq_ext    = ${params.fastq_ext}"
-  log.info "suffix1      = ${params.suffix1}"
-  log.info "suffix2      = ${params.suffix2}"
-  log.info "output_folder= ${params.output_folder}"
-  log.info "bed          = ${params.bed}"
-  log.info "mem_QC       = ${params.mem_QC}"
-  log.info "ref_folder   = ${params.ref_folder}"
-  log.info "gtf          = ${params.gtf}"
-  log.info "RG           = ${params.RG}"
-  log.info "stranded     = ${params.stranded}"
-  log.info "hisat2_idx   = ${params.hisat2_idx}"
-  log.info "sjtrim       = ${params.sjtrim}"
-  log.info "hisat2       = ${params.hisat2}"
-  log.info "htseq_maxreads=${params.htseq_maxreads}"
-  log.info "recalibration= ${params.recalibration}"
-  log.info "snp_vcf= ${params.snp_vcf}"
-  log.info "indel_vcf= ${params.indel_vcf}"
-
-  log.info "help=${params.help}"
+  log.info "input_folder   = ${params.input_folder}"
+  log.info "input_file     = ${params.input_file}"
+  log.info "ref            = ${params.ref}"
+  log.info "cpu            = ${params.cpu}"
+  log.info "cpu_gatk       = ${params.cpu_gatk}"
+  log.info "cpu_trim       = ${params.cpu_trim}"
+  log.info "mem            = ${params.mem}"
+  log.info "mem_QC         = ${params.mem_QC}"
+  log.info "fastq_ext      = ${params.fastq_ext}"
+  log.info "suffix1        = ${params.suffix1}"
+  log.info "suffix2        = ${params.suffix2}"
+  log.info "output_folder  = ${params.output_folder}"
+  log.info "bed            = ${params.bed}"
+  log.info "ref_folder     = ${params.ref_folder}"
+  log.info "gtf            = ${params.gtf}"
+  log.info "RG             = ${params.RG}"
+  log.info "stranded       = ${params.stranded}"
+  log.info "hisat2_idx     = ${params.hisat2_idx}"
+  log.info "hisat2         = ${params.hisat2}"
+  log.info "htseq_maxreads = ${params.htseq_maxreads}"
+  log.info "multiqc_config = ${params.multiqc_config}"
+  log.info "recalibration  = ${params.recalibration}"
+  log.info "sjtrim         = ${params.sjtrim}"
+  log.info "cutadapt       = ${params.cutadapt}"
+  log.info "snp_vcf        = ${params.snp_vcf}"
+  log.info "indel_vcf      = ${params.indel_vcf}"
+  log.info "help           = ${params.help}"
 }
 
 //multiqc config file
@@ -322,12 +321,12 @@ process alignment {
       	publishDir params.output_folder, mode: 'copy', saveAs: {filename ->
                  if (filename.indexOf(".bam") > 0)                      "BAM/$filename"
             else if (filename.indexOf("SJ") > 0)              "BAM/$filename"
-            else if (filename.indexOf("Log") > 0)             "QC/alignment/$filename"
+            //else if (filename.indexOf("Log") > 0)             "QC/alignment/$filename"
         }
       }else{
 	publishDir params.output_folder, mode: 'copy', saveAs: {filename ->
             if (filename.indexOf("SJ") > 0)              "BAM/$filename"
-            else if (filename.indexOf("Log") > 0)             "QC/alignment/$filename"
+            //else if (filename.indexOf("Log") > 0)             "QC/alignment/$filename"
         }
       }
             
@@ -538,7 +537,6 @@ process quantification{
 	
 	if( (params.sjtrim)||(params.recalibration) ){
 	'''
-	htseq-count -h
 	mv !{file_tag}.bam !{file_tag}_coordinate_sorted.bam
 	sambamba sort -n -t !{task.cpus} -m !{params.mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam !{file_tag}_coordinate_sorted.bam
 	htseq-count -r name -s !{params.stranded} -f bam !{file_tag}.bam !{gtf} !{buffer} --additional-attr=gene_name > !{file_tag}_count.txt 

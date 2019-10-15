@@ -1,6 +1,8 @@
 # RNAseq-nf
 
 ## Nextflow pipeline for RNA seq processing
+[![CircleCI](https://circleci.com/gh/IARCbioinfo/RNAseq-nf/tree/master.svg?style=svg)](https://circleci.com/gh/IARCbioinfo/RNAseq-nf/tree/master)
+[![Docker Hub](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/r/iarcbioinfo/rnaseq-nf/)
 
 ![workflow](RNAseqpipeline.png?raw=true "Scheme of alignment/realignment Workflow")
 

@@ -18,8 +18,7 @@ Nextflow pipeline for RNA sequencing mapping, quality control, reads counting, a
 5. [*RESeQC*](http://rseqc.sourceforge.net/)
 6. [*multiQC*](http://multiqc.info/docs/)
 7. [*STAR*](https://github.com/alexdobin/STAR/blob/master/doc/STARmanual.pdf)
-8. [*STAR-Fusion*](https://github.com/STAR-Fusion/STAR-Fusion/wiki) (version >= 1.2.0) with dependencies (Perl modules, Trinity)
-9. [*htseq*](http://www-huber.embl.de/HTSeq/doc/install.html#install); the python script htseq-count must also be in the PATH
+8. [*htseq*](http://www-huber.embl.de/HTSeq/doc/install.html#install); the python script htseq-count must also be in the PATH
 
 A bundle with reference genome and corresponding annotations for STAR is available at https://data.broadinstitute.org/Trinity/CTAT_RESOURCE_LIB/.
 
@@ -40,8 +39,8 @@ hisat2-build reference.fa --ss genome.ss --exon genome.exon genome_tran
 ```
 
 ### Reads trimming at splice junctions
-In order to perform the optional reads trimming at splice junctions, GATK must be installed:
-- GATK [*GenomeAnalysisTK.jar*](https://software.broadinstitute.org/gatk/guide/quickstart)
+In order to perform the optional reads trimming at splice junctions, GATK4 must be installed:
+- [*GATK*](https://software.broadinstitute.org/gatk/guide/quickstart)
 
 In addition, index *.fai* and dictionnary *.dict* must be generated from the fasta reference genome using the following commands:
 ```bash
@@ -51,19 +50,17 @@ java -jar picard.jar CreateSequenceDictionary R= ref.fa O= ref.dict
 
 ### Base quality score recalibration
 In order to perform the optional base quality score recalibration, several files are required:
-- GATK [*GenomeAnalysisTK.jar*](https://software.broadinstitute.org/gatk/guide/quickstart)
-- [GATK bundle](https://software.broadinstitute.org/gatk/download/bundle) VCF files with lists of indels and SNVs (recommended: 1000 genomes indels, Mills gold standard indels VCFs, dbsnp VCF)
+- [*GATK4*](https://software.broadinstitute.org/gatk/guide/quickstart)
+- [GATK bundle](https://software.broadinstitute.org/gatk/download/bundle) VCF files with lists of indels and SNVs (recommended: 1000 genomes indels, dbsnp VCF)
 - bed file with intervals to be considered
-
-### Clustering
-In order to perform the optional unsupervised analysis of read counts (PCA and consensus clustering), you need:
-- the unsupervised analysis R script [*RNAseq_unsupervised.R*](https://github.com/IARCbioinfo/RNAseq_analysis_scripts); this script must be in a floder of the path variable (e.g., in /usr/bin/)
-- [R and Rscript](https://cran.r-project.org) with packages ConsensusClusterPlus, ade4, DESeq2, fpc, and cluster
 
 ## Input 
  | Type      | Description     |
   |-----------|---------------|
-  | --input_folder    | a folder with fastq files or bam files |
+  |--input_folder    | a folder with fastq files or bam files |
+  |--input_file |  input tabulation-separated values file with columns SM (sample name), RG (read group), pair1 (first fastq pair file), and pair2 (second fastq pair file) |
+  
+  Note that there are two input methods--folder and file. Although the input folder method is the easiest because it does not require to create an input file with the right format, the input file mode is recommended in cases when a single sample has multiple paired files (e.g., due to multiplexed sequencing); in that case, users should have one line per pair of file and put a same SM identifier so that the workflow can group them into the same output bam file.
 
 
 ## Parameters
@@ -71,7 +68,6 @@ In order to perform the optional unsupervised analysis of read counts (PCA and c
 * #### Mandatory
 | Name | Example value | Description |
 |-----------|--------------:|-------------| 
-| --input_folder | . | input folder |
 |--ref_folder | ref | reference genome folder |
 |--gtf   |  Homo_sapiens.GRCh38.79.gtf | annotation GTF file |
 |--bed   |  gene.bed | bed file with genes for RESeQC | 
@@ -82,6 +78,8 @@ In order to perform the optional unsupervised analysis of read counts (PCA and c
 | Name | Default value | Description |
 |-----------|--------------|-------------| 
 |--cpu          | 4 | number of CPUs |
+|--cpu_gatk     | 1 | number of CPUs for GATK processes (SJ trimming and BQSR) |
+|--cpu_trim     | 15 | number of CPUs for reads trimming (cutadapt) |
 |--mem         | 50 | memory for mapping|
 |--mem_QC     | 2 | memory for QC and counting|
 |--fastq_ext    | fq.gz | extension of fastq files|
@@ -89,26 +87,21 @@ In order to perform the optional unsupervised analysis of read counts (PCA and c
 |--suffix2      | \_2 | suffix for second element of read files pair|
 |--output_folder   | . | output folder for aligned BAMs|
 |--ref |    ref.fa | reference genome fasta file for GATK |
-|--GATK_jar |  GenomeAnalysisTK.jar | path to jar file GenomeAnalysisTK.jar |
-|--GATK_bundle |  GATK_bundle | folder with files for BQSR |
+|--snp_vcf |  dbsnp.vcf | VCF file with known variants for GATK BQSR |
+|--indel_vcf |  Mills_100G_indels.vcf | VCF file with known indels for GATK BQSR |
 |--RG          |  PL:ILLUMINA | string to be added to read group information in BAM file |
 |--stranded   |  no | Strand information for counting with htseq [no, yes, reverse] | 
 |--hisat2_idx   |  genome_tran | index filename prefix for hisat2 | 
-|--clustering_n | 500 | number of genes to use for clustering |
-|--clustering_t | "vst" | count transformation method; 'rld', 'vst', or 'auto' |
-|--clustering_c | "hc" | clustering algorithm to be passed to ConsensusClusterPlus |
-|--clustering_l | "complete" | method for hierarchical clustering to be passed to ConsensusClusterPlus |
-|--htseq_maxreads| null | maximum number of reads in the htseq buffer; if null, uses the default htseq value 30,000,000 |
 
 * #### Flags
 
 | Name  | Description |
 |-----------|-------------| 
 |--help | print usage and optional parameters |
+|--cutadapt | enable adapter and quality reads trimming before alignment|
 |--sjtrim   | enable reads trimming at splice junctions | 
 |--hisat2   | use hisat2 instead of STAR for mapping | 
 |--recalibration  | perform quality score recalibration (GATK)|
-|--clustering  | perform unsupervised analyses of read counts data|
 
 
 ## Usage

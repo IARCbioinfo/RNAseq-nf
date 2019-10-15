@@ -567,7 +567,7 @@ process multiqc_pretrim {
     if( multiqc_config.name=='NO_FILE' ){
         opt = ""
     }else{
-        opt = '--config ${multiqc_config}'
+        opt = "--config ${multiqc_config}"
     }
     '''
     for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;
@@ -602,7 +602,7 @@ process multiqc_posttrim {
     if( multiqc_config.name=='NO_FILE' ){
 	opt = ""
     }else{
-	opt = '--config ${multiqc_config}'
+	opt = "--config ${multiqc_config}"
     }
     '''
     for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;

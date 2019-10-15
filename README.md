@@ -13,12 +13,10 @@ Nextflow pipeline for RNA sequencing mapping, quality control, reads counting, a
 1. Nextflow: for common installation procedures see the [IARC-nf](https://github.com/IARCbioinfo/IARC-nf) repository.
 
 2. [*fastqc*](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/INSTALL.txt)
-3. [*cutadapt*](http://cutadapt.readthedocs.io/en/stable/installation.html), which requires Python version > 2.7
-4. [*trim_galore*](https://github.com/FelixKrueger/TrimGalore)
-5. [*RESeQC*](http://rseqc.sourceforge.net/)
-6. [*multiQC*](http://multiqc.info/docs/)
-7. [*STAR*](https://github.com/alexdobin/STAR/blob/master/doc/STARmanual.pdf)
-8. [*htseq*](http://www-huber.embl.de/HTSeq/doc/install.html#install); the python script htseq-count must also be in the PATH
+3. [*RESeQC*](http://rseqc.sourceforge.net/)
+4. [*multiQC*](http://multiqc.info/docs/)
+5. [*STAR*](https://github.com/alexdobin/STAR/blob/master/doc/STARmanual.pdf)
+6. [*htseq*](http://www-huber.embl.de/HTSeq/doc/install.html#install); the python script htseq-count must also be in the PATH
 
 A bundle with reference genome and corresponding annotations for STAR is available at https://data.broadinstitute.org/Trinity/CTAT_RESOURCE_LIB/.
 
@@ -26,6 +24,10 @@ Alternatively, STAR genome indices can be generated from a genome fasta file ref
 ```bash
 STAR --runThreadN n --runMode genomeGenerate --genomeDir ref --genomeFastaFiles ref.fa --sjdbGTFfile ref.gtf --sjdbOverhang 99
 ```
+### Reads adapter trimming with cutadapt
+In order to perform the optional adapter trimming of reads before mapping the following software must be installed:
+- [*cutadapt*](http://cutadapt.readthedocs.io/en/stable/installation.html) version > 1.15, which requires Python version > 2.7
+- [*trim_galore*](https://github.com/FelixKrueger/TrimGalore)
 
 ### Alignment with hisat2
 In order to perform the optional alignment with hisat2, hisat2 must be installed:
@@ -50,7 +52,7 @@ java -jar picard.jar CreateSequenceDictionary R= ref.fa O= ref.dict
 
 ### Base quality score recalibration
 In order to perform the optional base quality score recalibration, several files are required:
-- [*GATK4*](https://software.broadinstitute.org/gatk/guide/quickstart)
+- [*GATK4*](https://software.broadinstitute.org/gatk/guide/quickstart) must be in the PATH variable
 - [GATK bundle](https://software.broadinstitute.org/gatk/download/bundle) VCF files with lists of indels and SNVs (recommended: 1000 genomes indels, dbsnp VCF)
 - bed file with intervals to be considered
 
@@ -117,43 +119,39 @@ nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --ref_folder ref_genome 
 Note that parameter '--hisat2_idx' is the prefix of the index files, not the entire path to .ht2 files. 
 
 ### Enable reads trimming at splice junctions
-To use the reads trimming at splice junctions step, you must add the ***--sjtrim* option**, specify the path to the folder containing the GenomeAnalysisTK jar file, as well as satisfy the requirements above mentionned. For example:
+To use the reads trimming at splice junctions step, you must add the ***--sjtrim* option** as well as satisfy the requirements above mentionned. For example:
 ```bash
-nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --ref_folder ref_genome --gtf ref.gtf --bed ref.bed --sjtrim --GATK_jar /home/user/GATK/GenomeAnalysisTK.jar
+nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --ref_folder ref_genome --gtf ref.gtf --bed ref.bed --sjtrim
 ```
 
 ### Enable Base Quality Score Recalibration
-To use the base quality score recalibration step, you must add the ***--bqsr* option**, specify the path to the folder containing the GenomeAnalysisTK jar file, the path to the GATK bundle folder for your reference genome, specify the path to the bed file with intervals to be considered, as well as satisfy the requirements above mentionned. For example:
+To use the base quality score recalibration step, you must add the ***--recalibration* option**, specify the path to the folder containing the GenomeAnalysisTK jar file, the path to the GATK bundle folder for your reference genome, specify the path to the bed file with intervals to be considered, as well as satisfy the requirements above mentionned. For example:
 ```bash
-nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --ref_folder ref_genome --gtf ref.gtf --bed ref.bed --recalibration --GATK_jar /home/user/GATK/GenomeAnalysisTK.jar --GATK_bundle /home/user/GATKbundle
+nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --ref_folder ref_genome --gtf ref.gtf --bed ref.bed --recalibration --snp_vcf GATK_bundle/dbsnp_146.hg38.vcf.gz --indel_vcf GATK_bundle/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz
 ```
-
-### Perform unsupervised analysis
-To use the unsupervised analysis step, you must add the ***--clustering* option**, and satisfy the requirements above mentionned. For example:
-```bash
-nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --ref_folder ref_genome --gtf ref.gtf --bed ref.bed --clustering
-```
-You can also specify options n, t, c, and l (see [*RNAseq_unsupervised.R*](https://github.com/IARCbioinfo/RNAseq_analysis_scripts)) of script RNAseq_unsupervised.R using options '--clustering_n', '--clustering_t', '--clustering_c', and '--clustering_l'.
-
 
 ## Output 
   | Type      | Description     |
   |-----------|---------------|
-  | file.bam    | BAM files of alignments or realignments |
-  | file.bam.bai    | BAI files of alignments or realignments |
-  | file_{12}.fq.gz_trimming_report.txt | trim_galore report | 
-  |multiqc_pretrim_report.html  | multiqc report before trimming | 
-  |multiqc_pretrim_report_data            | folder with data used to compute multiqc report before trimming |
-  |multiqc_posttrim_report.html      |     multiqc report before trimming | 
-  |multiqc_posttrim_report_data      |  folder with data used to compute multiqc report before trimming |
-  |STAR.file.Log.final.out| STAR log |
-  |file_readdist.txt                | RSeQC report |
-  |file_count.txt                   | htseq-count output file  |
-  | file_target_intervals.list    | list of intervals used  |
-  | file_recal.table | table of scores before recalibration   |
-  | file_post_recal.table   | table of scores after recalibration |
-  | file_recalibration_plots.pdf   |  before/after recalibration plots   |
+  | BAM/file.bam    | BAM files of alignments or realignments |
+  | BAM/file.bam.bai    | BAI files of alignments or realignments |
+  | BAM/STAR.file.Chimeric.SJ.out.junction | STAR chimeric junction output |
+  | BAM/STAR.file.SJ.out.tab | STAR junction tab output |
+  | counts/file_count.txt                   | htseq-count output file  |
+  | QC/multiqc_pretrim_report.html  | multiqc report before trimming | 
+  | QC/multiqc_pretrim_report_data            | folder with data used to compute multiqc report before trimming |
+  | QC/multiqc_posttrim_report.html      |     multiqc report before trimming | 
+  | QC/multiqc_posttrim_report_data      |  folder with data used to compute multiqc report before trimming |
+  | QC/adapter_trimming/file_{12}.fq.gz_trimming_report.txt | trim_galore report | 
+  | QC/adapter_trimming/file_{12}_val_{12}_fastqc.zip | FastQC report after trimming | 
+  | QC/alignment/STAR.file.Log.final.out, STAR.file.Log.out, STAR.file.Log.progress.out | STAR logs |
+  | QC/bam/file_readdist.txt, file_clipping_profile\*, file_jun_stauration\*| RSeQC reports |
+  | QC/fastq/file_{12}_pretrim_fastqc.zip | FastQC report before trimming | 
+  | QC/BAM/BQSR/file_recal.table | table of scores before recalibration   |
+  | QC/BAM/BQSR/file_post_recal.table   | table of scores after recalibration |
+  | QC/BAM/BQSR/file_recalibration_plots.pdf   |  before/after recalibration plots   |
           
+The output_folder directory contains three subfolders: BAM, counts, and QC
 
 ## Directed Acyclic Graph
 

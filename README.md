@@ -26,6 +26,8 @@ Alternatively, STAR genome indices can be generated from a genome fasta file ref
 ```bash
 STAR --runThreadN n --runMode genomeGenerate --genomeDir ref --genomeFastaFiles ref.fa --sjdbGTFfile ref.gtf --sjdbOverhang 99
 ```
+You can provide a config file to customize the multiqc report (see https://multiqc.info/docs/#configuring-multiqc).
+
 ### Reads adapter trimming with cutadapt
 In order to perform the optional adapter trimming of reads before mapping the following software must be installed:
 - [*cutadapt*](http://cutadapt.readthedocs.io/en/stable/installation.html) version > 1.15, which requires Python version > 2.7
@@ -96,6 +98,8 @@ In order to perform the optional base quality score recalibration, several files
 |--RG          |  PL:ILLUMINA | string to be added to read group information in BAM file |
 |--stranded   |  no | Strand information for counting with htseq [no, yes, reverse] | 
 |--hisat2_idx   |  genome_tran | index filename prefix for hisat2 | 
+|--multiqc_config   |  null | config yaml file for multiqc | 
+
 
 * #### Flags
 

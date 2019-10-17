@@ -127,7 +127,7 @@ nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --ref_folder ref_genome 
 ```
 
 ### Enable Base Quality Score Recalibration
-To use the base quality score recalibration step, you must add the ***--recalibration* option**, specify the path to the folder containing the GenomeAnalysisTK jar file, the path to the GATK bundle folder for your reference genome, specify the path to the bed file with intervals to be considered, as well as satisfy the requirements above mentionned. For example:
+To use the base quality score recalibration step, you must add the ***--recalibration* option**, specify the path to the known snps and indels from the GATK bundle, as well as satisfy the requirements above mentionned. For example:
 ```bash
 nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --ref_folder ref_genome --gtf ref.gtf --bed ref.bed --recalibration --snp_vcf GATK_bundle/dbsnp_146.hg38.vcf.gz --indel_vcf GATK_bundle/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz
 ```

@@ -1,4 +1,4 @@
-#! /usr/bin/env nextflow
+#!/usr/bin/env nextflow
 // Copyright (C) 2017 IARC/WHO
 
 // This program is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@ params.gtf          = null
 params.bed          = null
 
 params.cpu          = 4
-params.cpu_gatk          = 1
+params.cpu_gatk     = 1
 params.mem          = 50
 params.mem_QC       = 2
 params.fastq_ext    = "fq.gz"
@@ -32,6 +32,7 @@ params.ref          = "ref.fa"
 params.snp_vcf      = "dbsnp.vcf"
 params.indel_vcf    = "Mills_1000G_indels.vcf"
 params.RG           = "PL:ILLUMINA"
+params.STAR_mapqUnique = 255
 params.stranded     = "no"
 params.hisat2_idx   = "genome_tran"
 params.cpu_trim     = 15
@@ -82,6 +83,7 @@ if (params.help) {
     log.info '    --mem            INTEGER                Size of memory used for mapping (in GB) (default: 32).'
     log.info '    --mem_QC         INTEGER                Size of memory used for QC and cutadapt (in GB) (default: 32).'
     log.info '    --RG             STRING                 Samtools read group specification (default : PL:ILLUMINA).'
+    log.info '    --STAR_mapqUnique INTEGER               STAR default mapping quality for unique mappers (default : 255).'
     log.info '    --fastq_ext      STRING                 Extension of fastq files (default : fq.gz)'
     log.info '    --suffix1        STRING                 Suffix of fastq files 1 (default : _1)'
     log.info '    --suffix2        STRING                 Suffix of fastq files 2 (default : _2)'
@@ -118,6 +120,7 @@ if (params.help) {
   log.info "ref_folder     = ${params.ref_folder}"
   log.info "gtf            = ${params.gtf}"
   log.info "RG             = ${params.RG}"
+  log.info "STAR_mapqUnique = ${params.STAR_mapqUnique}"
   log.info "stranded       = ${params.stranded}"
   log.info "hisat2_idx     = ${params.hisat2_idx}"
   log.info "hisat2         = ${params.hisat2}"
@@ -346,8 +349,9 @@ process alignment {
       for( rgtmp in rg.drop(1) ){
         rgline=rgline+" , ID:${file_tag}_${rgtmp} SM:${file_tag} ${params.RG}"
       }
+      MQ=""
       '''
-      STAR --outSAMattrRGline !{rgline} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 100000 --alignIntronMax 100000 --alignSJstitchMismatchNmax 5 -1 5 5 --outSAMstrandField intronMotif --chimMultimapScoreRange 10 --chimMultimapNmax 10 --chimNonchimScoreDropMin 10 --peOverlapNbasesMin 12 --peOverlapMMp 0.1 --chimOutJunctionFormat 1 --twopassMode Basic --outReadsUnmapped None --runThreadN !{align_threads} --genomeDir . --sjdbGTFfile !{gtf} --readFilesCommand zcat --readFilesIn !{input_f1} !{input_f2} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+      STAR --outSAMattrRGline !{rgline} --outSAMmapqUnique !{params.STAR_Mapqunique} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 100000 --alignIntronMax 100000 --alignSJstitchMismatchNmax 5 -1 5 5 --outSAMstrandField intronMotif --chimMultimapScoreRange 10 --chimMultimapNmax 10 --chimNonchimScoreDropMin 10 --peOverlapNbasesMin 12 --peOverlapMMp 0.1 --chimOutJunctionFormat 1 --twopassMode Basic --outReadsUnmapped None --runThreadN !{align_threads} --genomeDir . --sjdbGTFfile !{gtf} --readFilesCommand zcat --readFilesIn !{input_f1} !{input_f2} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
       mv Chimeric.out.junction STAR.!{file_tag}.Chimeric.SJ.out.junction
       mv SJ.out.tab STAR.!{file_tag}.SJ.out.tab
       mv Log.final.out STAR.!{file_tag}.Log.final.out
@@ -609,3 +613,4 @@ process multiqc_posttrim {
     multiqc . -n multiqc_posttrim_report.html -m fastqc -m cutadapt -m star -m rseqc -m htseq !{opt} --comment "RNA-seq Post-trimming QC report"
     '''
 }
+

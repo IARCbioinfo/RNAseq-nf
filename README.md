@@ -26,6 +26,8 @@ Alternatively, STAR genome indices can be generated from a genome fasta file ref
 ```bash
 STAR --runThreadN n --runMode genomeGenerate --genomeDir ref --genomeFastaFiles ref.fa --sjdbGTFfile ref.gtf --sjdbOverhang 99
 ```
+You can provide a config file to customize the multiqc report (see https://multiqc.info/docs/#configuring-multiqc).
+
 ### Reads adapter trimming with cutadapt
 In order to perform the optional adapter trimming of reads before mapping the following software must be installed:
 - [*cutadapt*](http://cutadapt.readthedocs.io/en/stable/installation.html) version > 1.15, which requires Python version > 2.7
@@ -96,6 +98,8 @@ In order to perform the optional base quality score recalibration, several files
 |--RG          |  PL:ILLUMINA | string to be added to read group information in BAM file |
 |--stranded   |  no | Strand information for counting with htseq [no, yes, reverse] | 
 |--hisat2_idx   |  genome_tran | index filename prefix for hisat2 | 
+|--multiqc_config   |  null | config yaml file for multiqc | 
+
 
 * #### Flags
 
@@ -127,7 +131,7 @@ nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --ref_folder ref_genome 
 ```
 
 ### Enable Base Quality Score Recalibration
-To use the base quality score recalibration step, you must add the ***--recalibration* option**, specify the path to the folder containing the GenomeAnalysisTK jar file, the path to the GATK bundle folder for your reference genome, specify the path to the bed file with intervals to be considered, as well as satisfy the requirements above mentionned. For example:
+To use the base quality score recalibration step, you must add the ***--recalibration* option**, specify the path to the known snps and indels from the GATK bundle, as well as satisfy the requirements above mentionned. For example:
 ```bash
 nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --ref_folder ref_genome --gtf ref.gtf --bed ref.bed --recalibration --snp_vcf GATK_bundle/dbsnp_146.hg38.vcf.gz --indel_vcf GATK_bundle/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz
 ```

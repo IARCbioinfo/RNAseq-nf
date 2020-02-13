@@ -261,12 +261,12 @@ process fastqc_pretrim {
 	publishDir "${params.output_folder}/QC/fastq", mode: 'copy', pattern: '{*fastqc.zip}'
 
 	shell:
-	basename1=pair1.baseName.split("\\.")[0]
-	basename2=pair2.baseName.split("\\.")[0]
+	//basename1=pair1.baseName.split("\\.")[0]
+	//basename2=pair2.baseName.split("\\.")[0]
         '''
 	fastqc -t !{task.cpus} !{pair1} !{pair2}
-	mv !{basename1}_fastqc.zip !{basename1}_pretrim_fastqc.zip
-	mv !{basename2}_fastqc.zip !{basename2}_pretrim_fastqc.zip 
+	mv !{file_tag}!{params.suffix1}_fastqc.zip !{file_tag}!{params.suffix1}_pretrim_fastqc.zip
+	mv !{file_tag}!{params.suffix2}_fastqc.zip !{file_tag}!{params.suffix2}_pretrim_fastqc.zip 
         '''
 }
 

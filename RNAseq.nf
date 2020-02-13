@@ -42,8 +42,6 @@ params.sjtrim       = null
 params.recalibration= null
 
 params.cutadapt     = null
-params.sjtrim       = null
-params.recalibration = null
 params.hisat2       = null
 params.help         = null
 

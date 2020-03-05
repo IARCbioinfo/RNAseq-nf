@@ -290,7 +290,7 @@ if(params.cutadapt!=null){
 	    cpu_tg2 = cpu_tg.div(3.5)
 	    cpu_tg3 = Math.round(Math.ceil(cpu_tg2))
             '''
-	    trim_galore --paired --fastqc --basename !{file_tag}_!{rg} -j !{cpu_tg3} !{pair1} !{pair2}
+	    trim_galore --paired --fastqc --gzip --basename !{file_tag}_!{rg} -j !{cpu_tg3} !{pair1} !{pair2}
             '''
 	}
 }else{

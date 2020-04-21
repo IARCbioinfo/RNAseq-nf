@@ -7,7 +7,7 @@ FROM nfcore/base
 LABEL base_image="nfcore/base"
 LABEL version="1.0"
 LABEL software="rnaseq-nf"
-LABEL software.version="2.1"
+LABEL software.version="2.2"
 LABEL about.summary="Container image containing all requirements for rnaseq-nf"
 LABEL about.home="http://github.com/IARCbioinfo/RNAseq-nf"
 LABEL about.documentation="http://github.com/IARCbioinfo/RNAseq-nf/README.md"

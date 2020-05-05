@@ -48,7 +48,7 @@ params.help         = null
 
 log.info "" 
 log.info "--------------------------------------------------------"
-log.info "  RNAseq-nf 2.1.0: alignment, QC, and reads counting workflow for RNA sequencing "
+log.info "  RNAseq-nf 2.1.1: alignment, QC, and reads counting workflow for RNA sequencing "
 log.info "--------------------------------------------------------"
 log.info "Copyright (C) IARC/WHO"
 log.info "This program comes with ABSOLUTELY NO WARRANTY; for details see LICENSE"
@@ -263,8 +263,8 @@ process fastqc_pretrim {
 	//basename2=pair2.baseName.split("\\.")[0]
         '''
 	fastqc -t !{task.cpus} !{pair1} !{pair2}
-	mv !{file_tag}!{params.suffix1}_fastqc.zip !{file_tag}!{params.suffix1}_pretrim_fastqc.zip
-	mv !{file_tag}!{params.suffix2}_fastqc.zip !{file_tag}!{params.suffix2}_pretrim_fastqc.zip 
+	mv !{file_tag}!{params.suffix1}_fastqc.zip !{file_tag}!{params.suffix1}!{rg}_pretrim_fastqc.zip
+	mv !{file_tag}!{params.suffix2}_fastqc.zip !{file_tag}!{params.suffix2}!{rg}_pretrim_fastqc.zip 
         '''
 }
 
@@ -290,7 +290,7 @@ if(params.cutadapt!=null){
 	    cpu_tg2 = cpu_tg.div(3.5)
 	    cpu_tg3 = Math.round(Math.ceil(cpu_tg2))
             '''
-	    trim_galore --paired --fastqc --gzip --basename !{file_tag}_!{rg} -j !{cpu_tg3} !{pair1} !{pair2}
+	    trim_galore --paired --fastqc --gzip --basename !{file_tag}!{rg} -j !{cpu_tg3} !{pair1} !{pair2}
             '''
 	}
 }else{

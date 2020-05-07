@@ -4,19 +4,18 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - gatk4=4.0.5.1
-  - fastqc=0.11.8
-  - trim-galore=0.6.2
-  - samtools=1.9
+  - gatk4=4.1.7.0
+  - fastqc=0.11.9
+  - trim-galore=0.6.5
   - star=2.7.3a
   - rseqc=3.0.1
   - ldc=1.13.0
-  - sambamba=0.7.0
-  - samblaster=0.1.24
-  - multiqc=1.7
-  - htseq=0.11.2 
+  - sambamba=0.7.1
+  - samblaster=0.1.25
+  - multiqc=1.8
+  - htseq=0.12.4
   - r-ggplot2=3.1.1
-  - r-gplots=3.0.1
+  - r-gplots=3.0.3
   - r-gsalib=2.1.0
-  - r-essentials
+  - r-essentials=3.6.0
   - r-reshape=0.8.8

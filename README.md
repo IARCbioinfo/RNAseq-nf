@@ -20,6 +20,9 @@ Nextflow pipeline for RNA sequencing mapping, quality control, reads counting, a
 5. [*STAR*](https://github.com/alexdobin/STAR/blob/master/doc/STARmanual.pdf)
 6. [*htseq*](http://www-huber.embl.de/HTSeq/doc/install.html#install); the python script htseq-count must also be in the PATH
 
+**A singularity container is available with all the tools needed to run the pipeline (see "Usage")**
+
+### References
 A bundle with reference genome and corresponding annotations for STAR is available at https://data.broadinstitute.org/Trinity/CTAT_RESOURCE_LIB/.
 
 Alternatively, STAR genome indices can be generated from a genome fasta file ref.fa and a splice junction annotation file ref.gtf using the following command:
@@ -66,7 +69,7 @@ In order to perform the optional base quality score recalibration, several files
   |--input_folder    | a folder with fastq files or bam files |
   |--input_file |  input tabulation-separated values file with columns SM (sample name), RG (read group), pair1 (first fastq pair file), and pair2 (second fastq pair file) |
   
-  Note that there are two input methods--folder and file. Although the input folder method is the easiest because it does not require to create an input file with the right format, the input file mode is recommended in cases when a single sample has multiple paired files (e.g., due to multiplexed sequencing); in that case, users should have one line per pair of file and put a same SM identifier so that the workflow can group them into the same output bam file.
+  Note that there are two input methods: folder and file. Although the input folder method is the easiest because it does not require to create an input file with the right format, the input file mode is recommended in cases when a single sample has multiple paired files (e.g., due to multiplexed sequencing); in that case, users should have one line per pair of file and put a same SM identifier so that the workflow can group them into the same output bam file.
 
 
 ## Parameters
@@ -95,9 +98,11 @@ In order to perform the optional base quality score recalibration, several files
 |--ref |    ref.fa | reference genome fasta file for GATK |
 |--snp_vcf |  dbsnp.vcf | VCF file with known variants for GATK BQSR |
 |--indel_vcf |  Mills_100G_indels.vcf | VCF file with known indels for GATK BQSR |
+|--STAR_mapqUnique | 255  | STAR default mapping quality for unique mappers |
 |--RG          |  PL:ILLUMINA | string to be added to read group information in BAM file |
 |--stranded   |  no | Strand information for counting with htseq [no, yes, reverse] | 
 |--hisat2_idx   |  genome_tran | index filename prefix for hisat2 | 
+|--htseq_maxreads | 30000000 | Maximum number of reads taken into account by htseq-count |
 |--multiqc_config   |  null | config yaml file for multiqc | 
 
 
@@ -115,8 +120,10 @@ In order to perform the optional base quality score recalibration, several files
 ## Usage
 To run the pipeline on a series of paired-end fastq files (with suffixes *_1* and *_2*) in folder *fastq*, a reference genome with indexes in folder *ref_genome*, an annotation file ref.gtf, and a bed file ref.bed, one can type:
 ```bash
-nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --ref_folder ref_genome --gtf ref.gtf --bed ref.bed
+nextflow run iarcbioinfo/RNAseq-nf -r v2.2 -profile singularity --input_folder fastq --ref_folder ref_genome --gtf ref.gtf --bed ref.bed
 ``` 
+To run the pipeline without singularity just remove "-profile singularity"
+
 ### Use hisat2 for mapping
 To use hisat2 instead of STAR for the reads mapping, you must add the ***--hisat2* option**, specify the path to the folder containing the hisat2 index files (genome_tran.1.ht2 to genome_tran.8.ht2), as well as satisfy the requirements above mentionned. For example:
 ```bash

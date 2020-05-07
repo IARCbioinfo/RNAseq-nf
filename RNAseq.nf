@@ -338,7 +338,9 @@ process alignment {
       sort_mem     = params.mem.intdiv(4)
       input_f1="${pair1[0]}"
       input_f2="${pair2[0]}"
-      rgline="ID:${file_tag}_${rg[0]} SM:${file_tag} ${params.RG}"
+      rgtmp="${rg[0]}"
+      if(rgtmp=="") rgtmp="${file_tag}"
+      rgline="ID:${rgtmp} SM:${file_tag} ${params.RG}"
       for( p1tmp in pair1.drop(1) ){
 	input_f1=input_f1+",${p1tmp}"
       }
@@ -346,7 +348,8 @@ process alignment {
         input_f2=input_f2+",${p2tmp}"
       }
       for( rgtmp in rg.drop(1) ){
-        rgline=rgline+" , ID:${file_tag}_${rgtmp} SM:${file_tag} ${params.RG}"
+	if(rgtmp=="") rgtmp="${file_tag}"
+        rgline=rgline+" , ID:${rgtmp} SM:${file_tag} ${params.RG}"
       }
       MQ=""
       '''

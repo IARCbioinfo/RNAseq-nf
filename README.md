@@ -123,7 +123,7 @@ To run the pipeline on a series of paired-end fastq files (with suffixes *_1* an
 ```bash
 nextflow run iarcbioinfo/RNAseq-nf -r v2.2 -profile singularity --input_folder fastq --ref_folder ref_genome --gtf ref.gtf --bed ref.bed
 ``` 
-To run the pipeline without singularity just remove "-profile singularity"
+To run the pipeline using conda instead of singularity, replace "-profile singularity" by "-profile conda". To run with your own local software installation, just remove "-profile singularity".
 
 ### Use hisat2 for mapping
 To use hisat2 instead of STAR for the reads mapping, you must add the ***--hisat2* option**, specify the path to the folder containing the hisat2 index files (genome_tran.1.ht2 to genome_tran.8.ht2), as well as satisfy the requirements above mentionned. For example:

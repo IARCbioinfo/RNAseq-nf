@@ -216,31 +216,19 @@ if(mode=='bam'){
 if(mode=='fastq'){
     println "fastq mode"
     
-    keys1 = file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.suffix1}.${params.fastq_ext}/ }.collect { it.getName() }
-                                                                                                               .collect { it.replace("${params.suffix1}.${params.fastq_ext}",'') }
-    keys2 = file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.suffix2}.${params.fastq_ext}/ }.collect { it.getName() }
-                                                                                                               .collect { it.replace("${params.suffix2}.${params.fastq_ext}",'') }
-    if ( !(keys1.containsAll(keys2)) || !(keys2.containsAll(keys1)) ) {println "\n ERROR : There is not at least one fastq without its mate, please check your fastq files."; System.exit(0)}
-
-readPairs0 = Channel.fromFilePairs(params.input_folder +"/*{${params.suffix1},${params.suffix2}}" +'.'+ params.fastq_ext)
+    if(params.suffix2){
+        println "paired library"
+        readPairs0 = Channel.fromFilePairs(params.input_folder +"/*{${params.suffix1},${params.suffix2}}" +'.'+ params.fastq_ext)
 			      .map { row -> [ row[0] , "" , row[1][0], row[1][1] ] }
-                  .subscribe{ row -> println "${row}" }
-
-// Gather files ending with _1 suffix
-   reads1 = Channel
-    .fromPath( params.input_folder+'/*'+params.suffix1+'.'+params.fastq_ext )
-    .map {  path -> [ path.name.replace("${params.suffix1}.${params.fastq_ext}",""), path ] }
-
-// Gather files ending with _2 suffix
-   reads2 = Channel
-    .fromPath( params.input_folder+'/*'+params.suffix2+'.'+params.fastq_ext )
-    .map {  path -> [ path.name.replace("${params.suffix2}.${params.fastq_ext}",""), path ] }
-
-// Match the pairs on two channels having the same 'key' (name) and emit a new pair containing the expected files
-   reads1
-    .phase(reads2)
-    .map { pair1, pair2 -> [ pair1[0] , "" , pair1[1], pair2[1] ] }
-    .into{ readPairs ; readPairs2}
+                  .view()
+                  .into{ readPairs ; readPairs2}
+    }else{
+        println "single library"
+        readPairs0 = Channel.fromPath(params.input_folder +"/*${params.suffix1}" +'.'+ params.fastq_ext)
+			      .map { row -> [ row.name.replace("${params.suffix1}.${params.fastq_ext}","") , "" , row , file("NO_fastq2") ] }
+                  .view()
+                  .into{ readPairs ; readPairs2}
+    }
 }
 }
 
@@ -262,10 +250,17 @@ process fastqc_pretrim {
 	shell:
 	basename1=pair1.name.replace(".${params.fastq_ext}","") //baseName.split("\\.")[0]
 	basename2=pair2.name.replace(".${params.fastq_ext}","") //baseName.split("\\.")[0]
+    if(params.suffix2){
+        pairs="${pair1} ${pair2}"
+    }else{
+        pairs="${pair1}"
+    }
     '''
-	fastqc -t !{task.cpus} !{pair1} !{pair2}
+	fastqc -t !{task.cpus} !{pairs}
 	mv !{basename1}_fastqc.zip !{file_tag}!{params.suffix1}!{rg}_pretrim_fastqc.zip
-	mv !{basename2}_fastqc.zip !{file_tag}!{params.suffix2}!{rg}_pretrim_fastqc.zip 
+	if [ ! -L NO_fastq2 ]
+        then mv !{basename2}_fastqc.zip !{file_tag}!{params.suffix2}!{rg}_pretrim_fastqc.zip 
+    fi 
     '''
 }
 
@@ -281,7 +276,7 @@ if(params.cutadapt!=null){
 	    
         output:
         set val(file_tag), val(rg) , file("${file_tag}${rg}*val_1.fq.gz"), file("${file_tag}${rg}*val_2.fq.gz")  into readPairs3
-	    file("*_val_*_fastqc.zip") into fastqc_postpairs
+	    file("*_fastqc.zip") into fastqc_postpairs
 	    file("*trimming_report.txt") into trimming_reports
 	    
 	    publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: '{*report.txt,*fastqc.zip}'
@@ -290,8 +285,19 @@ if(params.cutadapt!=null){
 	    cpu_tg = params.cpu_trim -1
 	    cpu_tg2 = cpu_tg.div(3.5)
 	    cpu_tg3 = Math.round(Math.ceil(cpu_tg2))
+        if(params.suffix2){
+            pairs="${pair1} ${pair2}"
+            opts="--paired "
+        }else{
+            pairs="${pair1}"
+            opts=" "
+        }
         '''
-	    trim_galore --paired --fastqc --gzip --basename !{file_tag}!{rg} -j !{cpu_tg3} !{pair1} !{pair2}
+	    trim_galore !{opts} --fastqc --gzip --basename !{file_tag}!{rg} -j !{cpu_tg3} !{pairs}
+        if [ ! -L NO_fastq2 ]
+            mv !{file_tag}!{rg}_trimmed.fq.gz !{file_tag}!{rg}_val_1.fq.gz
+            then touch !{file_tag}!{rg}_val_2.fq.gz 
+        fi 
         '''
 	}
 }else{
@@ -337,23 +343,32 @@ process alignment {
       sort_threads = params.cpu.intdiv(2) - 1
       sort_mem     = params.mem.intdiv(4)
       input_f1="${pair1[0]}"
-      input_f2="${pair2[0]}"
       rgtmp="${rg[0]}"
       if(rgtmp=="") rgtmp="${file_tag}"
       rgline="ID:${rgtmp} SM:${file_tag} ${params.RG}"
       for( p1tmp in pair1.drop(1) ){
-	input_f1=input_f1+",${p1tmp}"
-      }
-      for( p2tmp in pair2.drop(1) ){
-        input_f2=input_f2+",${p2tmp}"
+	    input_f1=input_f1+",${p1tmp}"
       }
       for( rgtmp in rg.drop(1) ){
-	if(rgtmp=="") rgtmp="${file_tag}"
+	    if(rgtmp=="") rgtmp="${file_tag}"
         rgline=rgline+" , ID:${rgtmp} SM:${file_tag} ${params.RG}"
       }
-      MQ=""
+      if(params.suffix2){
+        input_f2="${pair2[0]}"
+        for( p2tmp in pair2.drop(1) ){
+            input_f2=input_f2+",${p2tmp}"
+        }
+        pairs="${input_f1} ${input_f2}"
+      }else{
+        pairs="${input_f1}"
+      }
       '''
-      STAR --outSAMattrRGline !{rgline} --outSAMmapqUnique !{params.STAR_mapqUnique} --chimSegmentMin 12 --chimJunctionOverhangMin 12 --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 100000 --alignIntronMax 100000 --alignSJstitchMismatchNmax 5 -1 5 5 --outSAMstrandField intronMotif --chimMultimapScoreRange 10 --chimMultimapNmax 10 --chimNonchimScoreDropMin 10 --peOverlapNbasesMin 12 --peOverlapMMp 0.1 --chimOutJunctionFormat 1 --twopassMode Basic --outReadsUnmapped None --runThreadN !{align_threads} --genomeDir . --sjdbGTFfile !{gtf} --readFilesCommand zcat --readFilesIn !{input_f1} !{input_f2} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+      STAR --outSAMattrRGline !{rgline} --outSAMmapqUnique !{params.STAR_mapqUnique} --chimSegmentMin 12 --chimJunctionOverhangMin 12 \
+           --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 100000 --alignIntronMax 100000 \
+           --alignSJstitchMismatchNmax 5 -1 5 5 --outSAMstrandField intronMotif --chimMultimapScoreRange 10 --chimMultimapNmax 10 \
+           --chimNonchimScoreDropMin 10 --peOverlapNbasesMin 12 --peOverlapMMp 0.1 --chimOutJunctionFormat 1 --twopassMode Basic \
+           --outReadsUnmapped None --runThreadN !{align_threads} --genomeDir . --sjdbGTFfile !{gtf} --readFilesCommand zcat \
+           --readFilesIn !{pairs} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
       mv Chimeric.out.junction STAR.!{file_tag}.Chimeric.SJ.out.junction
       mv SJ.out.tab STAR.!{file_tag}.SJ.out.tab
       mv Log.final.out STAR.!{file_tag}.Log.final.out

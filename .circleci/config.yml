@@ -10,7 +10,7 @@ jobs:
                         - run: echo " docker.runOptions = '-u $(id -u):$(id -g)' " > ~/.nextflow/config
                         - run: 
                                 name: docker_build
-                                no_output_timeout: 30m
+                                no_output_timeout: 120m
                                 command: cd ~/project/ ; docker build -t iarcbioinfo/rnaseq-nf .
                         - run: cd ; nextflow run ~/project/RNAseq.nf --help
                         - run: cd ; nextflow run ~/project/RNAseq.nf -with-docker iarcbioinfo/rnaseq-nf --input_folder ~/data_test/BAM/ --output_folder BAM_realigned --ref_folder  ~/data_test/REF --gtf ~/data_test/REF/TP53_small.gtf --bed ~/data_test/BED/TP53_small.bed --cpu 2 --mem 4 -with-dag dag_STAR.png

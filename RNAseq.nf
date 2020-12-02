@@ -132,6 +132,9 @@ if (params.help) {
   log.info "help           = ${params.help}"
 }
 
+suffix2 = params.suffix2
+if(suffix2=="null" ) suffix2 = null
+
 //multiqc config file
 ch_config_for_multiqc = file(params.multiqc_config)
 
@@ -216,7 +219,7 @@ if(mode=='bam'){
 if(mode=='fastq'){
     println "fastq mode"
     
-    if(params.suffix2){
+    if(suffix2){
         println "paired library"
         readPairs0 = Channel.fromFilePairs(params.input_folder +"/*{${params.suffix1},${params.suffix2}}" +'.'+ params.fastq_ext)
 			      .map { row -> [ row[0] , "" , row[1][0], row[1][1] ] }
@@ -250,7 +253,7 @@ process fastqc_pretrim {
 	shell:
 	basename1=pair1.name.replace(".${params.fastq_ext}","") //baseName.split("\\.")[0]
 	basename2=pair2.name.replace(".${params.fastq_ext}","") //baseName.split("\\.")[0]
-    if(params.suffix2){
+    if(suffix2){
         pairs="${pair1} ${pair2}"
     }else{
         pairs="${pair1}"
@@ -285,7 +288,7 @@ if(params.cutadapt!=null){
 	    cpu_tg = params.cpu_trim -1
 	    cpu_tg2 = cpu_tg.div(3.5)
 	    cpu_tg3 = Math.round(Math.ceil(cpu_tg2))
-        if(params.suffix2){
+        if(suffix2){
             pairs="${pair1} ${pair2}"
             opts="--paired "
         }else{
@@ -353,7 +356,7 @@ process alignment {
 	    if(rgtmp=="") rgtmp="${file_tag}"
         rgline=rgline+" , ID:${rgtmp} SM:${file_tag} ${params.RG}"
       }
-      if(params.suffix2){
+      if(suffix2){
         input_f2="${pair2[0]}"
         for( p2tmp in pair2.drop(1) ){
             input_f2=input_f2+",${p2tmp}"

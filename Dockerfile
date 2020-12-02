@@ -19,5 +19,6 @@ MAINTAINER **nalcala** <**alcalan@fellows.iarc.fr**>
 ################## INSTALLATION ######################
 COPY environment.yml /
 RUN apt-get update && apt-get install -y procps && apt-get clean -y
+RUN conda config --set channel_priority strict
 RUN conda env create -n rnaseq-nf -f /environment.yml && conda clean -a
 ENV PATH /opt/conda/envs/rnaseq-nf/bin:$PATH

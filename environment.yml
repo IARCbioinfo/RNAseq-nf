@@ -16,6 +16,4 @@ dependencies:
   - r-ggplot2=3.1.1
   - r-gplots=3.0.3
   - r-gsalib=2.1.0
-  #- r-essentials=3.6.0
-  #- r-reshape=0.8.8
   - samtools=1.9

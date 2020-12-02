@@ -6,7 +6,7 @@ FROM continuumio/miniconda3:4.7.12
 LABEL base_image="continuumio/miniconda3"
 LABEL version="4.7.12"
 LABEL software="rnaseq-nf"
-LABEL software.version="2.3"
+LABEL software.version="2.4"
 LABEL about.summary="Container image containing all requirements for rnaseq-nf"
 LABEL about.home="http://github.com/IARCbioinfo/RNAseq-nf"
 LABEL about.documentation="http://github.com/IARCbioinfo/RNAseq-nf/README.md"

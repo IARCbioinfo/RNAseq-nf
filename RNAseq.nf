@@ -48,7 +48,7 @@ params.help         = null
 
 log.info "" 
 log.info "--------------------------------------------------------"
-log.info "  RNAseq-nf 2.3.0: alignment, QC, and reads counting workflow for RNA sequencing "
+log.info "  RNAseq-nf 2.4.0: alignment, QC, and reads counting workflow for RNA sequencing "
 log.info "--------------------------------------------------------"
 log.info "Copyright (C) IARC/WHO"
 log.info "This program comes with ABSOLUTELY NO WARRANTY; for details see LICENSE"

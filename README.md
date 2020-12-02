@@ -70,8 +70,14 @@ In order to perform the optional base quality score recalibration, several files
   |--input_folder    | a folder with fastq files or bam files |
   |--input_file |  input tabulation-separated values file with columns SM (sample name), RG (read group), pair1 (first fastq pair file), and pair2 (second fastq pair file) |
   
-  Note that there are two input methods: folder and file. Although the input folder method is the easiest because it does not require to create an input file with the right format, the input file mode is recommended in cases when a single sample has multiple paired files (e.g., due to multiplexed sequencing); in that case, users should have one line per pair of file and put a same SM identifier so that the workflow can group them into the same output bam file.
+  Note that there are two input methods: folder and file. Although the input folder method is the easiest because it does not require to create an input file with the right format, the input file mode is recommended in cases when a single sample has multiple paired files (e.g., due to multiplexed sequencing); in that case, users should have one line per pair of file and put a same SM identifier so that the workflow can group them into the same output bam file. For example:
 
+```
+SM RG pair1 pair2
+sample1		sample1_1.fq.gz	sample1_2.fq.gz
+sample2	RG1	sample2_RG1_1.fq.gz	sample2_RG1_2.fq.gz
+sample2	RG2	sample2_RG2_1.fq.gz	sample2_RG2_2.fq.gz
+``` 
 
 ## Parameters
 
@@ -121,14 +127,14 @@ In order to perform the optional base quality score recalibration, several files
 ## Usage
 To run the pipeline on a series of paired-end fastq files (with suffixes *_1* and *_2*) in folder *fastq*, a reference genome with indexes in folder *ref_genome*, an annotation file ref.gtf, and a bed file ref.bed, one can type:
 ```bash
-nextflow run iarcbioinfo/RNAseq-nf -r v2.2 -profile singularity --input_folder fastq --ref_folder ref_genome --gtf ref.gtf --bed ref.bed
+nextflow run iarcbioinfo/RNAseq-nf -r v2.4 -profile singularity --input_folder fastq --ref_folder ref_genome --gtf ref.gtf --bed ref.bed
 ``` 
 To run the pipeline using conda instead of singularity, replace "-profile singularity" by "-profile conda". To run with your own local software installation, just remove "-profile singularity".
 
 ### Single-end fastq mode
 Default is adapted to paired-end libraries. To use single-end libraries as input, you must specify the option "--suffix2 null". 
 ```bash
-nextflow run iarcbioinfo/RNAseq-nf -r v2.2 -profile singularity --input_folder fastq --ref_folder ref_genome --gtf ref.gtf --bed ref.bed --suffix2 null
+nextflow run iarcbioinfo/RNAseq-nf -r v2.4 -profile singularity --input_folder fastq --ref_folder ref_genome --gtf ref.gtf --bed ref.bed --suffix2 null
 ``` 
 If using "--input_file", you must additionally set the values in column "pair2" to "NO_fastq2". For example the following file input.txt:
 
@@ -140,7 +146,7 @@ sample2	RG2	sample2_RG2.fq.gz	NO_fastq2
 ``` 
 can be processed with 
 ```bash
-nextflow run iarcbioinfo/RNAseq-nf -r v2.2 -profile singularity --input_file input.txt --ref_folder ref_genome --gtf ref.gtf --bed ref.bed --suffix2 null
+nextflow run iarcbioinfo/RNAseq-nf -r v2.4 -profile singularity --input_file input.txt --ref_folder ref_genome --gtf ref.gtf --bed ref.bed --suffix2 null
 ``` 
 
 ### Use hisat2 for mapping

@@ -125,6 +125,24 @@ nextflow run iarcbioinfo/RNAseq-nf -r v2.2 -profile singularity --input_folder f
 ``` 
 To run the pipeline using conda instead of singularity, replace "-profile singularity" by "-profile conda". To run with your own local software installation, just remove "-profile singularity".
 
+### Single-end fastq mode
+Default is adapted to paired-end libraries. To use single-end libraries as input, you must specify the option "--suffix2 null". 
+```bash
+nextflow run iarcbioinfo/RNAseq-nf -r v2.2 -profile singularity --input_folder fastq --ref_folder ref_genome --gtf ref.gtf --bed ref.bed --suffix2 null
+``` 
+If using "--input_file", you must additionally set the values in column "pair2" to "NO_fastq2". For example the following file input.txt:
+
+```
+SM RG pair1 pair2
+sample1		sample1.fq.gz	NO_fastq2
+sample2	RG1	sample2_RG1.fq.gz	NO_fastq2
+sample2	RG2	sample2_RG2.fq.gz	NO_fastq2
+``` 
+can be processed with 
+```bash
+nextflow run iarcbioinfo/RNAseq-nf -r v2.2 -profile singularity --input_file input.txt --ref_folder ref_genome --gtf ref.gtf --bed ref.bed --suffix2 null
+``` 
+
 ### Use hisat2 for mapping
 To use hisat2 instead of STAR for the reads mapping, you must add the ***--hisat2* option**, specify the path to the folder containing the hisat2 index files (genome_tran.1.ht2 to genome_tran.8.ht2), as well as satisfy the requirements above mentionned. For example:
 ```bash

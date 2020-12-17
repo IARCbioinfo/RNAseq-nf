@@ -297,7 +297,7 @@ if(params.cutadapt!=null){
         }
         '''
 	    trim_galore !{opts} --fastqc --gzip --basename !{file_tag}!{rg} -j !{cpu_tg3} !{pairs}
-        if [ ! -L NO_fastq2 ]
+        if [ -L NO_fastq2 ]
             mv !{file_tag}!{rg}_trimmed.fq.gz !{file_tag}!{rg}_val_1.fq.gz
             then touch !{file_tag}!{rg}_val_2.fq.gz 
         fi 

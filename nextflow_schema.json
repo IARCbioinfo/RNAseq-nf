@@ -1,0 +1,149 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "https://raw.githubusercontent.com/IARCbioinfo/RNAseq-nf/master/nextflow_schema.json",
+    "title": "RNAseq-nf pipeline parameters",
+    "description": "Nextflow pipeline for RNA sequencing mapping, quality control, reads counting, and unsupervised analysis",
+    "type": "object",
+    "properties": {
+        "input_folder": {
+            "type": "string",
+            "description": "Folder containing BAM or fastq files to be aligned",
+            "default": "null"
+        },
+        "input_file": {
+            "type": "string",
+            "description": "input tabulation-separated values file with columns SM (sample name), RG (read group), pair1 (first fastq pair file), and pair2 (second fastq pair file)",
+            "default": "null"
+        },
+        "fastq_ext": {
+            "type": "string",
+            "description": "Extension of fastq files",
+            "default": "fq.gz"
+        },
+        "suffix1": {
+            "type": "string",
+            "description": "Suffix  of 1st fastq file (first element of read files pair)",
+            "default": "_1"
+        },
+        "suffix2": {
+            "type": "string",
+            "description": "Suffix of 2nd fastq file (second element of read files pair)",
+            "default": "_2"
+        },
+        "ref": {
+            "type": "string",
+            "description": "Reference fasta file (with index) for splice junction trimming and base recalibration",
+            "default": "ref.fa"
+        },
+        "ref_folder": {
+            "type": "string",
+            "description": "Folder with genome reference files (with index)",
+            "default": "null"
+        },
+        "gtf": {
+            "type": "string",
+            "description": "Annotation GTF file",
+            "default": "null"
+        },
+        "bed": {
+            "type": "string",
+            "description": "Bed file with genes for RESeQC (interval list)",
+            "default": "null"
+        },
+        "snp_vcf": {
+            "type": "string",
+            "description": "Path to SNP VCF from GATK bundle",
+            "default": "dbsnp.vcf"
+        },
+        "indel_vcf": {
+            "type": "string",
+            "description": "Path to indel VCF from GATK bundle",
+            "default": "Mills_100G_indels.vcf"
+        },
+        "output_folder": {
+            "type": "string",
+            "description": "Output folder",
+            "default": "."
+        },
+        "cpu": {
+            "type": "integer",
+            "description": "Number of cpu used by bwa mem and sambamba",
+            "default": "4"
+        },
+        "cpu_GATK": {
+            "type": "integer",
+            "description": "Number of cpu used by GATK",
+            "default": "1"
+        },
+        "cpu_trim": {
+            "type": "integer",
+            "description": "Number of cpu used by cutadapt",
+            "default": "15"
+        },
+        "mem": {
+            "type": "integer",
+            "description": "Size of memory used for mapping (in GB)",
+            "default": "50"
+        },
+        "mem_QC": {
+            "type": "integer",
+            "description": "Size of memory used for QC and cutadapt (in GB)",
+            "default": "2"
+        },
+        "RG": {
+            "type": "string",
+            "description": "Samtools read group specification",
+            "default": "PL:ILLUMINA"
+        },
+        "cutadapt": {
+            "type": "boolean",
+            "description": "Perform adapter and quality reads trimming before alignment"
+        },
+        "stranded": {
+            "type": "string",
+            "description": "Strand information for counting with htseq [no, yes, reverse]",
+            "default": "no"
+        },
+        "STAR_mapqUnique": {
+            "type": "integer",
+            "description": "STAR default mapping quality for unique mappers",
+            "default": "255"
+        },
+        "htseq_maxreads": {
+            "type": "integer",
+            "description": "Maximum number of reads taken into account by htseq-count",
+            "default": "30000000"
+        },
+        "hisat2": {
+            "type": "boolean",
+            "description": "Use hisat2 instead of STAR for mapping"
+        },
+        "hisat2_idx": {
+            "type": "string",
+            "description": "hisat2 index file prefix",
+            "default": "genome_tran"
+        },
+        "sjtrim": {
+            "type": "boolean",
+            "description": "Enable reads trimming at splice junctions"
+        },
+        "recalibration": {
+            "type": "boolean",
+            "description": "Perform base quality score recalibration (GATK)"
+        },
+        "multiqc_config": {
+            "type": "string",
+            "description": "Config yaml file for multiqc",
+            "default": "NO_FILE"
+        },
+        "help": {
+            "type": "boolean",
+            "description": "Help"
+        }
+    },
+    "required": [
+        "ref_folder",
+        "gtf",
+        "bed"
+    ]
+}

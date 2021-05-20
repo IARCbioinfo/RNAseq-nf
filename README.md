@@ -67,8 +67,8 @@ In order to perform the optional base quality score recalibration, several files
 ## Input 
  | Type      | Description     |
   |-----------|---------------|
-  |--input_folder    | a folder with fastq files or bam files |
-  |--input_file |  input tabulation-separated values file with columns SM (sample name), RG (read group), pair1 (first fastq pair file), and pair2 (second fastq pair file) |
+  |--input_folder    | Folder containing BAM or fastq files to be aligned |
+  |--input_file |  Input tabulation-separated values file with columns SM (sample name), RG (read group), pair1 (first fastq pair file), and pair2 (second fastq pair file) |
   
   Note that there are two input methods: folder and file. Although the input folder method is the easiest because it does not require to create an input file with the right format, the input file mode is recommended in cases when a single sample has multiple paired files (e.g., due to multiplexed sequencing); in that case, users should have one line per pair of file and put a same SM identifier so that the workflow can group them into the same output bam file. For example:
 
@@ -84,33 +84,33 @@ sample2	RG2	sample2_RG2_1.fq.gz	sample2_RG2_2.fq.gz
 * #### Mandatory
 | Name | Example value | Description |
 |-----------|--------------:|-------------| 
-|--ref_folder | ref | reference genome folder |
-|--gtf   |  Homo_sapiens.GRCh38.79.gtf | annotation GTF file |
-|--bed   |  gene.bed | bed file with genes for RESeQC | 
+|--ref_folder | ref | Folder with genome reference files (with index) |
+|--gtf   |  Homo_sapiens.GRCh38.79.gtf | Annotation GTF file |
+|--bed   |  gene.bed | bed file with genes for RESeQC (interval list) | 
 
 
 * #### Optional
 
 | Name | Default value | Description |
 |-----------|--------------|-------------| 
-|--cpu          | 4 | number of CPUs |
-|--cpu_gatk     | 1 | number of CPUs for GATK processes (SJ trimming and BQSR) |
-|--cpu_trim     | 15 | number of CPUs for reads trimming (cutadapt) |
-|--mem         | 50 | memory for mapping|
-|--mem_QC     | 2 | memory for QC and counting|
-|--fastq_ext    | fq.gz | extension of fastq files|
-|--suffix1      | \_1 | suffix for second element of read files pair|
-|--suffix2      | \_2 | suffix for second element of read files pair|
-|--output_folder   | . | output folder for aligned BAMs|
-|--ref |    ref.fa | reference genome fasta file for GATK |
-|--snp_vcf |  dbsnp.vcf | VCF file with known variants for GATK BQSR |
-|--indel_vcf |  Mills_100G_indels.vcf | VCF file with known indels for GATK BQSR |
+|--cpu          | 4 | Number of cpu used by bwa mem and sambamba |
+|--cpu_gatk     | 1 | Number of CPUs for GATK processes (SJ trimming and BQSR) |
+|--cpu_trim     | 15 | Number of CPUs for reads trimming (cutadapt) |
+|--mem         | 50 | Size of memory used for mapping (in GB) |
+|--mem_QC     | 2 | Size of memory used for QC and cutadapt (in GB) |
+|--fastq_ext    | fq.gz | Extension of fastq files |
+|--suffix1      | \_1 | Suffix of fastq files 1 (first element of read files pair) |
+|--suffix2      | \_2 | Suffix of fastq files 2(second element of read files pair) |
+|--output_folder   | . | Output folder |
+|--ref |    ref.fa | Reference fasta file (with index) for GATK |
+|--snp_vcf |  dbsnp.vcf | Path to SNP VCF from GATK bundle |
+|--indel_vcf |  Mills_100G_indels.vcf | Path to indel VCF from GATK bundle |
 |--STAR_mapqUnique | 255  | STAR default mapping quality for unique mappers |
-|--RG          |  PL:ILLUMINA | string to be added to read group information in BAM file |
+|--RG          |  PL:ILLUMINA | Samtools read group specification |
 |--stranded   |  no | Strand information for counting with htseq [no, yes, reverse] | 
-|--hisat2_idx   |  genome_tran | index filename prefix for hisat2 | 
+|--hisat2_idx   |  genome_tran | hisat2 index file prefix | 
 |--htseq_maxreads | 30000000 | Maximum number of reads taken into account by htseq-count |
-|--multiqc_config   |  null | config yaml file for multiqc | 
+|--multiqc_config   |  null | Config yaml file for multiqc | 
 
 
 * #### Flags

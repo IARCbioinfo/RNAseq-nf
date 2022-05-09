@@ -1,0 +1,11 @@
+reports:
+    "QC/multiqc_pretrim_report.html"
+        display: "MultiQC pre-trimming report"
+    "QC/multiqc_posttrim_report.html"
+        display: "MultiQC post-trimming report"
+    "QC/adapter_trimming/**.fastq.gz_trimming_report.txt"
+        display: "Adapter trimming report"
+    "QC/bam/**_jun_saturation.junctionSaturation_plot.pdf
+        display: "Junction saturation plot"
+    "count/*_count.txt"
+        display: "Count table"

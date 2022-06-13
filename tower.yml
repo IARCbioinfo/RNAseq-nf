@@ -7,5 +7,5 @@ reports:
         display: "Adapter trimming report"
     "QC/bam/**_jun_saturation.junctionSaturation_plot.pdf":
         display: "Junction saturation plot"
-    "count/*_count.txt":
+    "counts/*_count.txt":
         display: "Count table"

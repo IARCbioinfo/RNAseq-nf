@@ -185,9 +185,7 @@ nextflow run iarcbioinfo/RNAseq-nf --input_folder fastq --ref_folder ref_genome 
   | QC/alignment/STAR.file.Log.final.out, STAR.file.Log.out, STAR.file.Log.progress.out | STAR logs |
   | QC/bam/file_readdist.txt, file_clipping_profile\*, file_jun_stauration\*| RSeQC reports |
   | QC/fastq/file_{12}_pretrim_fastqc.zip | FastQC report before trimming | 
-  | QC/BAM/BQSR/file_recal.table | table of scores before recalibration   |
-  | QC/BAM/BQSR/file_post_recal.table   | table of scores after recalibration |
-  | QC/BAM/BQSR/file_recalibration_plots.pdf   |  before/after recalibration plots   |
+
           
 The output_folder directory contains three subfolders: BAM, counts, and QC
 

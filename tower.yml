@@ -1,10 +1,24 @@
 reports:
     "QC/multiqc_pretrim_report.html":
         display: "MultiQC pre-trimming report"
-    "QC/multiqc_posttrim_report.html":
-        display: "MultiQC post-trimming report"
+    "QC/fastq/**_1_pretrim_fastqc.zip":
+        display: "FastQC report before trimming - val 1"
+    "QC/fastq/**_2_pretrim_fastqc.zip":
+        display: "FastQC report before trimming - val 2"
     "QC/adapter_trimming/**.fastq.gz_trimming_report.txt":
         display: "Adapter trimming report"
+     "QC/multiqc_posttrim_report.html":
+        display: "MultiQC post-trimming report"
+    "QC/adapter_trimming/**_val_1_fastqc.zip":
+        display: "FastQC report after trimming - val 1"
+    "QC/adapter_trimming/**_val_2_fastqc.zip":
+        display: "FastQC report after trimming - val 2"
+    "BAM/STAR.**.SJ.out.tab":
+        display: "STAR junction report"
+        mimeType: tsv
+    "BAM/STAR.**.Chimeric.SJ.out.junction":
+        display: "STAR chimeric junction report"
+        mimeType: tsv
     "QC/bam/**_jun_saturation.junctionSaturation_plot.pdf":
         display: "Junction saturation plot"
     "counts/*_count.txt":

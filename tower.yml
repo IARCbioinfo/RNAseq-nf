@@ -7,7 +7,7 @@ reports:
         display: "FastQC report before trimming for val 2"
     "QC/adapter_trimming/**.fastq.gz_trimming_report.txt":
         display: "Adapter trimming report"
-     "QC/multiqc_posttrim_report.html":
+    "QC/multiqc_posttrim_report.html":
         display: "MultiQC post-trimming report"
     "QC/adapter_trimming/**_val_1_fastqc.zip":
         display: "FastQC report after trimming for val 1"

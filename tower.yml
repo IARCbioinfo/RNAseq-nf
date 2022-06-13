@@ -13,20 +13,12 @@ reports:
         display: "FastQC report after trimming for val 1"
     "QC/adapter_trimming/**_val_2_fastqc.zip":
         display: "FastQC report after trimming for val 2"
-    "BAM/STAR.**.SJ.out.tab":
-        display: "STAR junction report"
-        mimeType: tsv
-    "BAM/STAR.**.Chimeric.SJ.out.junction":
-        display: "STAR chimeric junction report"
-        mimeType: tsv
     "QC/bam/**readdist.txt":
         display: "RESeQC readdist file"
     "QC/bam/**_clipping.clipping_profile.R1.pdf":
         display: "RESeQC clipping profile R1"
     "QC/bam/**_clipping.clipping_profile.R2.pdf":
         display: "RESeQC clipping profile R2"
-    "QC/bam/**_jun_saturation.junctionSaturation_plot.pdf":
-        display: "RESeQC Junction saturation plot"
     "QC/bam/**_jun_saturation.junctionSaturation_plot.pdf":
         display: "RESeQC Junction saturation plot"
     "counts/*_count.txt":

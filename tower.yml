@@ -15,10 +15,10 @@ reports:
         display: "FastQC report after trimming for val 2"
     "BAM/STAR.**.SJ.out.tab":
         display: "STAR junction report"
-        mimeType: tsv
+        mimeType: text/tsv
     "BAM/STAR.**.Chimeric.SJ.out.junction":
         display: "STAR chimeric junction report"
-        mimeType: tsv        
+        mimeType: text        
     "QC/bam/**readdist.txt":
         display: "RESeQC readdist file"
     "QC/bam/**_clipping.clipping_profile.R1.pdf":

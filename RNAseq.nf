@@ -539,42 +539,38 @@ workflow {
      // 0. INPUT NORMALISATION
      // ----------------------------------------
 
-    Channel readPairs
-    Channel readPairs2
-    Channel files
+    def readPairs
+    def readPairs2
+    def files
 
 	// If file as input
      if (mode == 'infile') {
    		readPairs = Channel.fromPath("${params.input_file}")
         .splitCsv(header: true, sep: '\t', strip: true)
-        .map { row -> [ row.SM, row.RG, file(row.pair1), file(row.pair2) ] }
+        .map { row -> tuple(row.SM, row.RG, file(row.pair1), file(row.pair2)) }
 		readPairs2 = readPairs
 		}
 	 
 	 // If BAM as input : process bam -> fastq //
-		if (mode == 'bam') {
-		// Define files channel (tag, rg, path)
-		files = Channel.fromPath("${params.input_folder}/*.bam")
-                          .map { path -> [ path.name.replace(".bam", ""), "", path ] }
+		else if (mode == 'bam') {
+		def files = Channel.fromPath("${params.input_folder}/*.bam")
+                          .map { path -> tuple(path.baseName, '', path) }
 		
-		BAM2FASTQ(files)
-        readPairs = readPairs0
-        readPairs2 = readPairs0
+		def bam2fq_out = BAM2FASTQ(files)
+        readPairs = bam2fq_out.out.reads
+        readPairs2 = bam2fq_out.out.reads
 		} 
 	
 	// IF FASTQ as input: build readPairs/readPairs2 channels if not already filled /////
-		if (mode == 'fastq') {
+		else if (mode == 'fastq') {
     		if (suffix2) {
         		readPairs = Channel.fromFilePairs("${params.input_folder}/*{${params.suffix1},${params.suffix2}}.${params.fastq_ext}")
-               .map { row -> [ row[0], "", row[1][0], row[1][1] ] }
-               .view()
-  				readPairs2 = readPairs
+               .map { row -> tuple(row[0], '', row[1][0], row[1][1]) }
     			} else {
-       	 				Channel.fromPath("${params.input_folder}/*${params.suffix1}.${params.fastq_ext}")
-               			.map { row -> [ row.name.replace("${params.suffix1}.${params.fastq_ext}", ""), "", row, file("NO_fastq2") ] }
-               			.view()
-						readPairs2 = readPairs
+       	 				readPairs = Channel.fromPath("${params.input_folder}/*${params.suffix1}.${params.fastq_ext}")
+               			.map { row -> tuple(row.name.replace("${params.suffix1}.${params.fastq_ext}", ''),'', row, file('NO_fastq2') ) }
    				 		}
+						readPairs2 = readPairs
 			}
 
      // ----------------------------------------

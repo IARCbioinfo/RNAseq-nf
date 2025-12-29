@@ -173,6 +173,7 @@ if (params.hisat2) {
 
 def readPairs = Channel.create()
 def readPairs2 = Channel.create()
+def files = Channel.create()
 
 def mode = null
 if (params.input_file) {
@@ -192,7 +193,7 @@ if (params.input_file) {
             println "BAM files found, proceed with realignment"
             Channel.fromPath("${params.input_folder}/*.bam")
                    .map { path -> [ path.name.replace(".bam", ""), "", path ] }
-                   .into(readPairs) 
+                   .into(files) 
         } else {
             println "ERROR: input folder contains no fastq nor BAM files"
             System.exit(0)
@@ -229,7 +230,7 @@ if (params.input_file) {
 		memory "${params.mem_QC}GB"
 
 		input:
-		set val(file_tag), val(rg), path(pair1), path(pair2) from readPairs_align
+		set val(file_tag), val(rg), path(pair1), path(pair2) from readPairs
 
 		output:
 		file("*_pretrim_fastqc.zip") into fastqc_pairs
@@ -285,7 +286,7 @@ if (params.input_file) {
         set val(file_tag), val(rg), path(pair1), path(pair2) from readPairs
 
         output:
-        set val(file_tag), val(rg), file("${file_tag}${rg}*val_1.fq.gz"), file("${file_tag}${rg}*val_2.fq.gz") into readPairs_align
+        set val(file_tag), val(rg), file("${file_tag}${rg}*val_1.fq.gz"), file("${file_tag}${rg}*val_2.fq.gz") into readPairs2
         file("*_fastqc.zip") into fastqc_postpairs
         file("*trimming_report.txt") into trimming_reports
 
@@ -321,7 +322,7 @@ if (params.input_file) {
 		memory "${params.mem}G"
 
 		input:
-		set val(file_tag), val(rg), path(pair1), path(pair2) from readPairs_align
+		set val(file_tag), val(rg), path(pair1), path(pair2) from readPairs2
 		file ref from ref.collect()
 		file gtf from gtf
 
@@ -505,11 +506,11 @@ if (params.input_file) {
 		memory "${params.mem_QC}GB"
 
 		input:
-		file STAR from align_out.collect()
-		file htseq from htseq_files.collect()
-		file rseqc_clip from rseqc_clip_files.collect()
-		file rseqc from rseqc_files.collect()
-		file rseqc_jsat from rseqc_jsat_files.collect()
+		file STAR from align_out
+		file htseq from htseq_files
+		file rseqc_clip from rseqc_clip_files
+		file rseqc from rseqc_files
+		file rseqc_jsat from rseqc_jsat_files
 		file trim from trimming_reports.collect().ifEmpty([])
 		file fastqcpost from fastqc_postpairs.collect().ifEmpty([])
 		file rseqc_split from rseqc_files_split.collect().ifEmpty([])
@@ -541,14 +542,11 @@ if (params.input_file) {
 
 workflow {
 
-
-3 modes: fastq, bam or infile
-
      // ----------------------------------------
      // 0. INPUT NORMALISATION
      // ----------------------------------------
 
-	 def readPairs_align
+	 def readPairs
 
 	// If file as input
      if (mode == 'infile') {
@@ -565,7 +563,7 @@ workflow {
                           .map { path -> [ path.name.replace(".bam", ""), "", path ] }
 		
 		BAM2FASTQ()
-        readPairs_align = readPairs0
+        readPairs = readPairs0
 		} 
 	
 	// IF FASTQ as input: build readPairs/readPairs2 channels if not already filled /////
@@ -598,33 +596,38 @@ workflow {
     // --------------------------------------------------------------
     // 3. OPTIONAL ADAPTER TRIMMING
     // --------------------------------------------------------------
-    if (params.cutadapt) {
- 	ADAPTER_TRIMMING(fastqc_pairs)
-	fastqc_pairs = readPairs3
-    }
+    
+	if (params.cutadapt) {
+ 	ADAPTER_TRIMMING() 
+	} else {
+			readPairs2 = readPairs
+    		}
 
     // --------------------------------------------------------------
     // 4. ALIGNMENT
     // --------------------------------------------------------------
-     ALIGNMENT()
+     
+	ALIGNMENT()
 
     // --------------------------------------------------------------
     // 5. OPTIONAL SPLICE JUNCTION TRIM
     // --------------------------------------------------------------
-    if (params.sjtrim) {
+    
+	if (params.sjtrim) {
         SPLICE_JUNCT_TRIM()
 		} else {
-			bam_files2 = bam_files
-		}
+				bam_files2 = bam_files
+				}
 
     // --------------------------------------------------------------
     // 6. OPTIONAL BQSR
     // --------------------------------------------------------------
-    if (params.recalibration) {
+    
+	if (params.recalibration) {
         BASE_QUALITY_SCORE_RECALIBRATION()
 		} else {
-        bam_files3 = bam_files2
-    } 
+        		bam_files3 = bam_files2
+    			} 
 
     // --------------------------------------------------------------
     // 7. RSEQC
@@ -636,28 +639,18 @@ workflow {
     // 8. RSEQCSPLIT
     // --------------------------------------------------------------
 
-        RSEQCSPLIT()
+    RSEQCSPLIT()
 
 
     // --------------------------------------------------------------
     // 9. QUANTIFICATION (RNA only)
     // --------------------------------------------------------------
    
-		QUANTIFICATION()
+	QUANTIFICATION()
 
     // --------------------------------------------------------------
     // 10. MULTIQC POSTRIM
     // --------------------------------------------------------------
 
-    MULTIQC_POSTTRIM(
-        align_out,
-        htseq_files,
-        rseqc_clip_files,
-        rseqc_files,
-        rseqc_jsat_files,
-        trimming_reports,
-        fastqc_postpairs,
-        rseqc_files_split,
-        ch_config_for_multiqc
-    )
+    MULTIQC_POSTTRIM()
 }

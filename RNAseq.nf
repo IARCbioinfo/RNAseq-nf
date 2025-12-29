@@ -175,18 +175,9 @@ known_indels_index = file( params.indel_vcf+'.tbi' )
 // INPUT CHECKS - either infile mode (tab) or fastq/bam scan
 // ---------------------------
 
-
-def readPairs = Channel.create()
-def readPairs2 = Channel.create()
-def files = Channel.create()
-
 def mode = null
 if (params.input_file) {
     mode = 'infile'
-    Channel.fromPath("${params.input_file}")
-        .splitCsv(header: true, sep: '\t', strip: true)
-        .map { row -> [ row.SM, row.RG, file(row.pair1), file(row.pair2) ] }
-        .into(readPairs, readPairs2)
 } else {
     if (file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.fastq_ext}/ }.size() > 0) {
 		mode = 'fastq'
@@ -196,9 +187,6 @@ if (params.input_file) {
         if (file(params.input_folder).listFiles().findAll { it.name ==~ /.*bam/ }.size() > 0) {
 			mode = 'bam'
             println "BAM files found, proceed with realignment"
-            Channel.fromPath("${params.input_folder}/*.bam")
-                   .map { path -> [ path.name.replace(".bam", ""), "", path ] }
-                   .into(files) 
         } else {
             println "ERROR: input folder contains no fastq nor BAM files"
             System.exit(0)
@@ -551,12 +539,16 @@ workflow {
      // 0. INPUT NORMALISATION
      // ----------------------------------------
 
+    Channel readPairs
+    Channel readPairs2
+    Channel files
+
 	// If file as input
      if (mode == 'infile') {
-   		Channel.fromPath("${params.input_file}")
+   		readPairs = Channel.fromPath("${params.input_file}")
         .splitCsv(header: true, sep: '\t', strip: true)
         .map { row -> [ row.SM, row.RG, file(row.pair1), file(row.pair2) ] }
-        .into(readPairs, readPairs2)
+		readPairs2 = readPairs
 		}
 	 
 	 // If BAM as input : process bam -> fastq //
@@ -567,20 +559,21 @@ workflow {
 		
 		BAM2FASTQ(files)
         readPairs = readPairs0
+        readPairs2 = readPairs0
 		} 
 	
 	// IF FASTQ as input: build readPairs/readPairs2 channels if not already filled /////
 		if (mode == 'fastq') {
     		if (suffix2) {
-        		Channel.fromFilePairs("${params.input_folder}/*{${params.suffix1},${params.suffix2}}.${params.fastq_ext}")
+        		readPairs = Channel.fromFilePairs("${params.input_folder}/*{${params.suffix1},${params.suffix2}}.${params.fastq_ext}")
                .map { row -> [ row[0], "", row[1][0], row[1][1] ] }
                .view()
-               .into(readPairs, readPairs2)
+  				readPairs2 = readPairs
     			} else {
        	 				Channel.fromPath("${params.input_folder}/*${params.suffix1}.${params.fastq_ext}")
                			.map { row -> [ row.name.replace("${params.suffix1}.${params.fastq_ext}", ""), "", row, file("NO_fastq2") ] }
                			.view()
-               			.into(readPairs, readPairs2)
+						readPairs2 = readPairs
    				 		}
 			}
 

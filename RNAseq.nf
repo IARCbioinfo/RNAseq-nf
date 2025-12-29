@@ -553,7 +553,7 @@ workflow {
 	 
 	 // If BAM as input : process bam -> fastq //
 		else if (mode == 'bam') {
-		def files = Channel.fromPath("${params.input_folder}/*.bam")
+		files = Channel.fromPath("${params.input_folder}/*.bam")
                           .map { path -> tuple(path.baseName, '', path) }
 		
 		def bam2fq_out = BAM2FASTQ(files)

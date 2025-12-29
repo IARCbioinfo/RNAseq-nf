@@ -327,8 +327,8 @@ if (params.input_file) {
 		memory "${params.mem}G"
 
 		input:
-		set val(file_tag), val(rg), path(pair1), path(pair2) from readPairs2
-		file ref from ref.collect()
+		set val(file_tag), val(rg), path(pair1), path(pair2) from readPairs_for_align
+		file ref from aligner_ref
 		file gtf from gtf
 
 		output:
@@ -400,7 +400,7 @@ if (params.input_file) {
                    }
 
         input:
-        set val(file_tag), val(rg), path("${file_tag}.bam"), path("${file_tag}.bam.bai") from bam_files2
+        set val(file_tag), val(rg), path("${file_tag}.bam"), path("${file_tag}.bam.bai") from bam_files_for_bqsr
         file known_snps from known_snps
         file known_snps_index from known_snps_index
         file known_indels from known_indels
@@ -431,7 +431,7 @@ if (params.input_file) {
 		memory "${params.mem_QC}GB"
 
 		input:
-			set val(file_tag), val(rg), path(bam), path(bai) from bam_files3
+			set val(file_tag), val(rg), path(bam), path(bai) from bam_files_for_quantif
 			file bed from bed
 
 		output:
@@ -455,7 +455,7 @@ if (params.input_file) {
 		memory "${params.mem_QC}GB"
 	
 		input:
-		set val(file_tag), val(rg), path(bam), path(bai) from bam_files3
+		set val(file_tag), val(rg), path(bam), path(bai) from bam_files_for_quantif
 		file bed from bed
 
 		output:
@@ -479,7 +479,7 @@ if (params.input_file) {
 		memory { (params.sjtrim || params.recalibration) ? "${params.mem}G" : "${params.mem_QC}G" }()
 
 		input:
-		set val(file_tag), val(rg), path(bam), path(bai) from bam_files3
+		set val(file_tag), val(rg), path(bam), path(bai) from bam_files_for_quantif
 		file gtf from gtf
 
 		output:
@@ -516,9 +516,9 @@ if (params.input_file) {
 		file rseqc_clip from rseqc_clip_files
 		file rseqc from rseqc_files
 		file rseqc_jsat from rseqc_jsat_files
-		file trim from trimming_reports.collect().ifEmpty([])
-		file fastqcpost from fastqc_postpairs.collect().ifEmpty([])
-		file rseqc_split from rseqc_files_split.collect().ifEmpty([])
+		file trim from trimming_reports.ifEmpty([])
+		file fastqcpost from fastqc_postpairs.ifEmpty([])
+		file rseqc_split from rseqc_files_split.ifEmpty([])
 		file multiqc_config from multiqc
 
 		output:
@@ -551,8 +551,6 @@ workflow {
      // 0. INPUT NORMALISATION
      // ----------------------------------------
 
-	 def readPairs
-
 	// If file as input
      if (mode == 'infile') {
    		Channel.fromPath("${params.input_file}")
@@ -564,10 +562,10 @@ workflow {
 	 // If BAM as input : process bam -> fastq //
 		if (mode == 'bam') {
 		// Define files channel (tag, rg, path)
-		def files = Channel.fromPath("${params.input_folder}/*.bam")
+		files = Channel.fromPath("${params.input_folder}/*.bam")
                           .map { path -> [ path.name.replace(".bam", ""), "", path ] }
 		
-		BAM2FASTQ()
+		BAM2FASTQ(files)
         readPairs = readPairs0
 		} 
 	
@@ -590,7 +588,7 @@ workflow {
      // 1. FASTQC PRETRIM
      // ----------------------------------------
 
-	FASTQC_PRETRIM()
+	FASTQC_PRETRIM(readPairs)
 
     // --------------------------------------------------------------
     // 2. MULTIQC PRETRIM
@@ -601,11 +599,13 @@ workflow {
     // --------------------------------------------------------------
     // 3. OPTIONAL ADAPTER TRIMMING
     // --------------------------------------------------------------
-    
+
+	Channel readPairs_for_align
 	if (params.cutadapt) {
- 	ADAPTER_TRIMMING() 
+ 	ADAPTER_TRIMMING()
+	readPairs_for_align = readPairs2
 	} else {
-			readPairs2 = readPairs
+			readPairs_for_align = readPairs
     		}
 
     // --------------------------------------------------------------
@@ -618,20 +618,24 @@ workflow {
     // 5. OPTIONAL SPLICE JUNCTION TRIM
     // --------------------------------------------------------------
     
+	Channel bam_files_for_bqsr
 	if (params.sjtrim) {
         SPLICE_JUNCT_TRIM()
+		bam_files_for_bqsr = bam_files2
 		} else {
-				bam_files2 = bam_files
+				 bam_files_for_bqsr = bam_files
 				}
 
     // --------------------------------------------------------------
     // 6. OPTIONAL BQSR
     // --------------------------------------------------------------
-    
+
+	Channel bam_files_for_quantif
 	if (params.recalibration) {
         BASE_QUALITY_SCORE_RECALIBRATION()
+		bam_files_for_quantif = bam_files3
 		} else {
-        		bam_files3 = bam_files2
+        		bam_files_for_quantif = bam_files_for_bqsr
     			} 
 
     // --------------------------------------------------------------

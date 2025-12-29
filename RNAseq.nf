@@ -208,7 +208,7 @@ if (params.input_file) {
         set val(file_tag), val(rg), path(infile) from files
 
         output:
-        set val(file_tag), val(file_tag), file("${file_tag}_1.fq.gz"), file("${file_tag}_2.fq.gz") into readPairs0
+        tuple val(file_tag), val(file_tag), file("${file_tag}_1.fq.gz"), file("${file_tag}_2.fq.gz"), emit: readPairs0
 
         script:
         '''
@@ -557,8 +557,8 @@ workflow {
                           .map { path -> tuple(path.baseName, '', path) }
 		
 		def bam2fq_out = BAM2FASTQ(files)
-        readPairs = bam2fq_out.out.reads
-        readPairs2 = bam2fq_out.out.reads
+        readPairs = bam2fq_out.out.readPairs0
+        readPairs2 = bam2fq_out.out.readPairs0
 		} 
 	
 	// IF FASTQ as input: build readPairs/readPairs2 channels if not already filled /////
@@ -589,7 +589,7 @@ workflow {
     // 3. OPTIONAL ADAPTER TRIMMING
     // --------------------------------------------------------------
 
-	Channel readPairs_for_align
+	def readPairs_for_align
 	if (params.cutadapt) {
  	ADAPTER_TRIMMING()
 	readPairs_for_align = readPairs2
@@ -607,7 +607,7 @@ workflow {
     // 5. OPTIONAL SPLICE JUNCTION TRIM
     // --------------------------------------------------------------
     
-	Channel bam_files_for_bqsr
+	def bam_files_for_bqsr
 	if (params.sjtrim) {
         SPLICE_JUNCT_TRIM()
 		bam_files_for_bqsr = bam_files2
@@ -619,7 +619,7 @@ workflow {
     // 6. OPTIONAL BQSR
     // --------------------------------------------------------------
 
-	Channel bam_files_for_quantif
+	def bam_files_for_quantif
 	if (params.recalibration) {
         BASE_QUALITY_SCORE_RECALIBRATION()
 		bam_files_for_quantif = bam_files3

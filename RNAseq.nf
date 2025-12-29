@@ -135,13 +135,9 @@ if ((params.sjtrim != null) || (params.recalibration != null)) {
 bed = file(params.bed) // OR    bed_ch = params.bed ? Channel.value(file(params.bed)) : Channel.empty()
 gtf = file(params.gtf) // OR	gtf_ch = params.gtf ? Channel.value(file(params.gtf)) : Channel.empty()
 
-    ref_ch = Channel.value(file(params.ref))
+multiqc = file(params.multiqc_config)
 
-
-
-ch_config_for_multiqc = file(params.multiqc_config)
-
-Def aligner_ref // STAR or HISAT2
+Def aligner_ref
 if (params.hisat2) {
     def pfx = "${params.ref_folder}/${params.hisat2_idx}"
     aligner_ref = Channel.fromPath("${pfx}.1.ht2")
@@ -187,16 +183,16 @@ if (params.input_file) {
         .into(readPairs, readPairs2)
 } else {
     if (file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.fastq_ext}/ }.size() > 0) {
-        println "fastq files found, proceed with alignment"
 		mode = 'fastq'
+        println "fastq files found, proceed with alignment"
+		
     } else {
         if (file(params.input_folder).listFiles().findAll { it.name ==~ /.*bam/ }.size() > 0) {
+			mode = 'bam'
             println "BAM files found, proceed with realignment"
-            mode = 'bam'
             Channel.fromPath("${params.input_folder}/*.bam")
                    .map { path -> [ path.name.replace(".bam", ""), "", path ] }
-                   .into(readPairs)   // into single channel for downstream processing
-            // we will set readPairs2 later in workflow when necessary
+                   .into(readPairs) 
         } else {
             println "ERROR: input folder contains no fastq nor BAM files"
             System.exit(0)
@@ -397,8 +393,6 @@ if (params.input_file) {
         '''
     }
 
-
-
 	process RSEQC { //(read distribution, clipping, junction saturation)
 		tag { file_tag }
 		cpus 1
@@ -484,7 +478,7 @@ if (params.input_file) {
 
 		input:
 		file fastqc1 from fastqc_pairs.collect()
-		file multiqc_config from ch_config_for_multiqc
+		file multiqc_config from multiqc
 
 		output:
 		file("multiqc_pretrim_report.html") into multiqc_pre
@@ -518,7 +512,7 @@ if (params.input_file) {
 		file trim from trimming_reports.collect().ifEmpty([])
 		file fastqcpost from fastqc_postpairs.collect().ifEmpty([])
 		file rseqc_split from rseqc_files_split.collect().ifEmpty([])
-		file multiqc_config from ch_config_for_multiqc
+		file multiqc_config from multiqc
 
 		output:
 		file("multiqc_posttrim_report.html") into multiqc_post
@@ -544,4 +538,135 @@ if (params.input_file) {
 // WORKFLOW
 // ========================================================================================================================================================
 
-#TO-DO
+workflow {
+
+
+3 modes: fastq, bam or infile
+
+     // ----------------------------------------
+     // 0. INPUT NORMALISATION
+     // ----------------------------------------
+
+	 Def readPairs_align
+
+	// If file as input
+     if (mode == 'infile') {
+   		Channel.fromPath("${params.input_file}")
+        .splitCsv(header: true, sep: '\t', strip: true)
+        .map { row -> [ row.SM, row.RG, file(row.pair1), file(row.pair2) ] }
+        .into(readPairs, readPairs2)
+		readPairs_align = readPairs, readPairs2
+		}
+	 
+	 // If BAM as input : process bam -> fastq //
+		if (mode == 'bam') {
+		// Define files channel (tag, rg, path)
+		Def files = Channel.fromPath("${params.input_folder}/*.bam")
+                          .map { path -> [ path.name.replace(".bam", ""), "", path ] }
+		
+		BAM2FASTQ(readPairs)
+        readPairs_align = readPairs0
+		} 
+	
+	// IF FASTQ as input: build readPairs/readPairs2 channels if not already filled /////
+		if (mode == 'fastq') {
+    		if (suffix2) {
+        		Channel.fromFilePairs("${params.input_folder}/*{${params.suffix1},${params.suffix2}}.${params.fastq_ext}")
+               .map { row -> [ row[0], "", row[1][0], row[1][1] ] }
+               .view()
+               .into(readPairs, readPairs2)
+				readPairs_align = readPairs, readPairs2
+    			} else {
+       	 				Channel.fromPath("${params.input_folder}/*${params.suffix1}.${params.fastq_ext}")
+               			.map { row -> [ row.name.replace("${params.suffix1}.${params.fastq_ext}", ""), "", row, file("NO_fastq2") ] }
+               			.view()
+               			.into(readPairs, readPairs2)
+						readPairs_align = readPairs, readPairs2
+   				 		}
+			}
+
+     // ----------------------------------------
+     // 1. FASTQC PRETRIM
+     // ----------------------------------------
+
+	FASTQC_PRETRIM(readPairs_align)
+
+    // --------------------------------------------------------------
+    // 2. MULTIQC PRETRIM
+    // --------------------------------------------------------------
+
+	MULTIQC_PRETRIM(fastqc_pairs)
+
+    // --------------------------------------------------------------
+    // 3. OPTIONAL ADAPTER TRIMMING
+    // --------------------------------------------------------------
+    if (params.cutadapt) {
+ 	ADAPTER_TRIMMING(fastqc_pairs)
+	fastqc_pairs = readPairs3
+    }
+
+    // --------------------------------------------------------------
+    // 4. ALIGNMENT
+    // --------------------------------------------------------------
+     ALIGNMENT(
+        fastqc_pairs,
+        aligner_ref,
+        gtf
+    )
+
+    // --------------------------------------------------------------
+    // 5. OPTIONAL SPLICE JUNCTION TRIM
+    // --------------------------------------------------------------
+    if (params.sjtrim) {
+        SPLICE_JUNCT_TRIM(bam_files)
+		bam_files=bam_files2
+	}
+
+
+    // --------------------------------------------------------------
+    // 6. OPTIONAL BQSR
+    // --------------------------------------------------------------
+    if (params.recalibration) {
+        bqsr = BASE_QUALITY_SCORE_RECALIBRATION(
+            bam_files,
+            ref_ch,
+            bed_ch
+        )
+        bam_files= bqsr
+    } 
+
+    // --------------------------------------------------------------
+    // 7. RSEQC
+    // --------------------------------------------------------------
+
+        RSEQC(bam_files, bed)
+
+    // --------------------------------------------------------------
+    // 8. RSEQCSPLIT
+    // --------------------------------------------------------------
+
+        RSEQCSPLIT(bam_files, bed)
+
+
+    // --------------------------------------------------------------
+    // 9. QUANTIFICATION (RNA only)
+    // --------------------------------------------------------------
+   
+	QUANTIFICATION(bam_files, gtf)
+
+    // --------------------------------------------------------------
+    // 10. MULTIQC POSTRIM
+    // --------------------------------------------------------------
+
+    MULTIQC_POSTTRIM(
+        align_out,
+        htseq_files,
+        rseqc_clip_files,
+        rseqc_files,
+        rseqc_jsat_files,
+        trimming_reports,
+        fastqc_postpairs,
+        rseqc_files_split,
+        ch_config_for_multiqc
+    )
+}

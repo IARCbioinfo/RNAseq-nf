@@ -141,7 +141,7 @@ gtf = file(params.gtf) // OR	gtf_ch = params.gtf ? Channel.value(file(params.gtf
 
 ch_config_for_multiqc = file(params.multiqc_config)
 
-Channel aligner_ref // STAR or HISAT2
+Def aligner_ref // STAR or HISAT2
 if (params.hisat2) {
     def pfx = "${params.ref_folder}/${params.hisat2_idx}"
     aligner_ref = Channel.fromPath("${pfx}.1.ht2")
@@ -174,8 +174,9 @@ if (params.hisat2) {
 // INPUT CHECKS - either infile mode (tab) or fastq/bam scan
 // ---------------------------
 
-Channel readPairs = Channel.create()
-Channel readPairs2 = Channel.create()
+
+Def readPairs = Channel.create()
+Def readPairs2 = Channel.create()
 
 def mode = null
 if (params.input_file) {

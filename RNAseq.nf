@@ -137,7 +137,7 @@ gtf = file(params.gtf) // OR	gtf_ch = params.gtf ? Channel.value(file(params.gtf
 
 multiqc = file(params.multiqc_config)
 
-Def aligner_ref
+def aligner_ref
 if (params.hisat2) {
     def pfx = "${params.ref_folder}/${params.hisat2_idx}"
     aligner_ref = Channel.fromPath("${pfx}.1.ht2")
@@ -171,8 +171,8 @@ if (params.hisat2) {
 // ---------------------------
 
 
-Def readPairs = Channel.create()
-Def readPairs2 = Channel.create()
+def readPairs = Channel.create()
+def readPairs2 = Channel.create()
 
 def mode = null
 if (params.input_file) {
@@ -223,16 +223,69 @@ if (params.input_file) {
         '''
     }
 
+	process FASTQC_PRETRIM {
+		tag { file_tag }
+		cpus params.cpu
+		memory "${params.mem_QC}GB"
+
+		input:
+		set val(file_tag), val(rg), path(pair1), path(pair2) from readPairs_align
+
+		output:
+		file("*_pretrim_fastqc.zip") into fastqc_pairs
+
+		publishDir "${params.output_folder}/QC/fastq", mode: 'copy', pattern: '{*fastqc.zip}'
+
+		script:
+		'''
+		basename1=$(basename ${pair1} .${params.fastq_ext})
+		if [ -n "${pair2}" ] && [ "$(basename ${pair2})" != "NO_fastq2" ]; then
+			fastqc -t ${task.cpus} ${pair1} ${pair2}
+			mv ${basename1}_fastqc.zip ${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip
+		else
+			fastqc -t ${task.cpus} ${pair1}
+			mv ${basename1}_fastqc.zip ${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip
+		fi
+    '''
+}
+
+	process MULTIQC_PRETRIM {
+		tag { "all" }
+		cpus 1
+		memory "${params.mem_QC}GB"
+
+		input:
+		file fastqc1 from fastqc_pairs
+		file multiqc_config from multiqc
+
+		output:
+		file("multiqc_pretrim_report.html") into multiqc_pre
+		file("multiqc_pretrim_report_data") into multiqc_pre_data
+
+		publishDir "${params.output_folder}/QC", mode: 'copy'
+
+		script:
+		'''
+		if [ "$(basename ${multiqc_config})" == "NO_FILE" ]; then
+			opt=""
+		else
+			opt="--config ${multiqc_config}"
+		fi
+		for f in $(find . -name "*_pretrim_fastqc.zip" -type l); do cp --remove-destination $(readlink $f) $f || true; done
+		multiqc . -n multiqc_pretrim_report.html -m fastqc ${opt} --comment "RNA-seq Pre-trimming QC report"
+		'''
+	}
+
     process ADAPTER_TRIMMING {
         tag { file_tag + rg }
         cpus params.cpu_trim
         memory "${params.mem_QC}GB"
 
         input:
-        set val(file_tag), val(rg), path(pair1), path(pair2) from readPairs2
+        set val(file_tag), val(rg), path(pair1), path(pair2) from readPairs
 
         output:
-        set val(file_tag), val(rg), file("${file_tag}${rg}*val_1.fq.gz"), file("${file_tag}${rg}*val_2.fq.gz") into readPairs3
+        set val(file_tag), val(rg), file("${file_tag}${rg}*val_1.fq.gz"), file("${file_tag}${rg}*val_2.fq.gz") into readPairs_align
         file("*_fastqc.zip") into fastqc_postpairs
         file("*trimming_report.txt") into trimming_reports
 
@@ -262,32 +315,6 @@ if (params.input_file) {
     }
 
 
-	process FASTQC_PRETRIM {
-		tag { file_tag }
-		cpus params.cpu
-		memory "${params.mem_QC}GB"
-
-		input:
-		set val(file_tag), val(rg), path(pair1), path(pair2) from readPairs
-
-		output:
-		file("*_pretrim_fastqc.zip") into fastqc_pairs
-
-		publishDir "${params.output_folder}/QC/fastq", mode: 'copy', pattern: '{*fastqc.zip}'
-
-		script:
-		'''
-		basename1=$(basename ${pair1} .${params.fastq_ext})
-		if [ -n "${pair2}" ] && [ "$(basename ${pair2})" != "NO_fastq2" ]; then
-			fastqc -t ${task.cpus} ${pair1} ${pair2}
-			mv ${basename1}_fastqc.zip ${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip
-		else
-			fastqc -t ${task.cpus} ${pair1}
-			mv ${basename1}_fastqc.zip ${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip
-		fi
-    '''
-}
-
 	process ALIGNMENT {
 		tag { file_tag }
 		cpus params.cpu
@@ -304,7 +331,6 @@ if (params.input_file) {
 		set val(file_tag), file("*SJ.out.junction") into SJ_out
 		file("*SJ.out.tab") into SJ_out_others
 
-		// conditional publish logic is achieved post-run by where outputs are copied in shell commands
 		script:
 		'''
 		align_threads=$(( ${params.cpu} / 2 ))
@@ -380,7 +406,7 @@ if (params.input_file) {
         output:
         file("*_recal.table") into recal_table_files
         file("*plots.pdf") into recal_plots_files
-        set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into recal_bam_files
+        set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into bam_files3
 
         script:
         '''
@@ -399,7 +425,7 @@ if (params.input_file) {
 		memory "${params.mem_QC}GB"
 
 		input:
-			set val(file_tag), val(rg), path(bam), path(bai) from recal_bam_files4QC
+			set val(file_tag), val(rg), path(bam), path(bai) from bam_files3
 			file bed from bed
 
 		output:
@@ -423,7 +449,7 @@ if (params.input_file) {
 		memory "${params.mem_QC}GB"
 	
 		input:
-		set val(file_tag), val(rg), path(bam), path(bai) from recal_bam_files4QCsplit
+		set val(file_tag), val(rg), path(bam), path(bai) from bam_files3
 		file bed from bed
 
 		output:
@@ -447,7 +473,7 @@ if (params.input_file) {
 		memory { (params.sjtrim || params.recalibration) ? "${params.mem}G" : "${params.mem_QC}G" }()
 
 		input:
-		set val(file_tag), val(rg), path(bam), path(bai) from recal_bam_files4quant
+		set val(file_tag), val(rg), path(bam), path(bai) from bam_files3
 		file gtf from gtf
 
 		output:
@@ -471,32 +497,7 @@ if (params.input_file) {
 		'''
 }
 
-	process MULTIQC_PRETRIM {
-		tag { "all" }
-		cpus 1
-		memory "${params.mem_QC}GB"
 
-		input:
-		file fastqc1 from fastqc_pairs.collect()
-		file multiqc_config from multiqc
-
-		output:
-		file("multiqc_pretrim_report.html") into multiqc_pre
-		file("multiqc_pretrim_report_data") into multiqc_pre_data
-
-		publishDir "${params.output_folder}/QC", mode: 'copy'
-
-		script:
-		'''
-		if [ "$(basename ${multiqc_config})" == "NO_FILE" ]; then
-			opt=""
-		else
-			opt="--config ${multiqc_config}"
-		fi
-		for f in $(find . -name "*_pretrim_fastqc.zip" -type l); do cp --remove-destination $(readlink $f) $f || true; done
-		multiqc . -n multiqc_pretrim_report.html -m fastqc ${opt} --comment "RNA-seq Pre-trimming QC report"
-		'''
-	}
 
 	process MULTIQC_POSTTRIM {
 		tag { "all" }
@@ -547,7 +548,7 @@ workflow {
      // 0. INPUT NORMALISATION
      // ----------------------------------------
 
-	 Def readPairs_align
+	 def readPairs_align
 
 	// If file as input
      if (mode == 'infile') {
@@ -555,16 +556,15 @@ workflow {
         .splitCsv(header: true, sep: '\t', strip: true)
         .map { row -> [ row.SM, row.RG, file(row.pair1), file(row.pair2) ] }
         .into(readPairs, readPairs2)
-		readPairs_align = readPairs, readPairs2
 		}
 	 
 	 // If BAM as input : process bam -> fastq //
 		if (mode == 'bam') {
 		// Define files channel (tag, rg, path)
-		Def files = Channel.fromPath("${params.input_folder}/*.bam")
+		def files = Channel.fromPath("${params.input_folder}/*.bam")
                           .map { path -> [ path.name.replace(".bam", ""), "", path ] }
 		
-		BAM2FASTQ(readPairs)
+		BAM2FASTQ()
         readPairs_align = readPairs0
 		} 
 	
@@ -575,13 +575,11 @@ workflow {
                .map { row -> [ row[0], "", row[1][0], row[1][1] ] }
                .view()
                .into(readPairs, readPairs2)
-				readPairs_align = readPairs, readPairs2
     			} else {
        	 				Channel.fromPath("${params.input_folder}/*${params.suffix1}.${params.fastq_ext}")
                			.map { row -> [ row.name.replace("${params.suffix1}.${params.fastq_ext}", ""), "", row, file("NO_fastq2") ] }
                			.view()
                			.into(readPairs, readPairs2)
-						readPairs_align = readPairs, readPairs2
    				 		}
 			}
 
@@ -589,13 +587,13 @@ workflow {
      // 1. FASTQC PRETRIM
      // ----------------------------------------
 
-	FASTQC_PRETRIM(readPairs_align)
+	FASTQC_PRETRIM()
 
     // --------------------------------------------------------------
     // 2. MULTIQC PRETRIM
     // --------------------------------------------------------------
 
-	MULTIQC_PRETRIM(fastqc_pairs)
+	MULTIQC_PRETRIM()
 
     // --------------------------------------------------------------
     // 3. OPTIONAL ADAPTER TRIMMING
@@ -608,51 +606,44 @@ workflow {
     // --------------------------------------------------------------
     // 4. ALIGNMENT
     // --------------------------------------------------------------
-     ALIGNMENT(
-        fastqc_pairs,
-        aligner_ref,
-        gtf
-    )
+     ALIGNMENT()
 
     // --------------------------------------------------------------
     // 5. OPTIONAL SPLICE JUNCTION TRIM
     // --------------------------------------------------------------
     if (params.sjtrim) {
-        SPLICE_JUNCT_TRIM(bam_files)
-		bam_files=bam_files2
-	}
-
+        SPLICE_JUNCT_TRIM()
+		} else {
+			bam_files2 = bam_files
+		}
 
     // --------------------------------------------------------------
     // 6. OPTIONAL BQSR
     // --------------------------------------------------------------
     if (params.recalibration) {
-        bqsr = BASE_QUALITY_SCORE_RECALIBRATION(
-            bam_files,
-            ref_ch,
-            bed_ch
-        )
-        bam_files= bqsr
+        BASE_QUALITY_SCORE_RECALIBRATION()
+		} else {
+        bam_files3 = bam_files2
     } 
 
     // --------------------------------------------------------------
     // 7. RSEQC
     // --------------------------------------------------------------
 
-        RSEQC(bam_files, bed)
+        RSEQC()
 
     // --------------------------------------------------------------
     // 8. RSEQCSPLIT
     // --------------------------------------------------------------
 
-        RSEQCSPLIT(bam_files, bed)
+        RSEQCSPLIT()
 
 
     // --------------------------------------------------------------
     // 9. QUANTIFICATION (RNA only)
     // --------------------------------------------------------------
    
-	QUANTIFICATION(bam_files, gtf)
+		QUANTIFICATION()
 
     // --------------------------------------------------------------
     // 10. MULTIQC POSTRIM

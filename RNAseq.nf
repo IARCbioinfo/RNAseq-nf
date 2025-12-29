@@ -132,8 +132,8 @@ if ((params.sjtrim != null) || (params.recalibration != null)) {
     fasta_ref_dict = file("${fasta_ref_dictn}.dict")
 }
 
-bed = file(params.bed) // OR    bed_ch = params.bed ? Channel.value(file(params.bed)) : Channel.empty()
-gtf = file(params.gtf) // OR	gtf_ch = params.gtf ? Channel.value(file(params.gtf)) : Channel.empty()
+bed = file(params.bed)
+gtf = file(params.gtf)
 
 multiqc = file(params.multiqc_config)
 
@@ -165,6 +165,11 @@ if (params.hisat2) {
                     Channel.fromPath("${params.ref_folder}/sjdbList.fromGTF.out.tab"),
                     Channel.fromPath("${params.ref_folder}/sjdbList.out.tab"))
 }
+
+known_snps = file( params.snp_vcf )
+known_snps_index = file( params.snp_vcf+'.tbi' )
+known_indels = file( params.indel_vcf )
+known_indels_index = file( params.indel_vcf+'.tbi' )
 
 // ---------------------------
 // INPUT CHECKS - either infile mode (tab) or fastq/bam scan

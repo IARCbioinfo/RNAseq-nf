@@ -364,15 +364,21 @@ if (params.input_file) {
 		def sort_mem      = (params.mem / 4) as int
 
 		script:
-    	"""
+    	'''
     	set -euo pipefail
-		
+
+		input_f1="${pair1}"
 		rgline="ID:${file_tag} SM:${file_tag} ${params.RG}"
 		if [ -n "${pair2}" ] && [ "$(basename ${pair2})" != "NO_fastq2" ]; then
     		pairs="${pair1} ${pair2}"
 		else
     		pairs="${pair1}"
 		fi
+
+		align_threads=!{align_threads}
+		sort_threads=!{sort_threads}
+		sort_mem=!{sort_mem}
+
 		STAR \
         --genomeDir ${star_index} \
         --sjdbGTFfile ${gtf} \
@@ -410,7 +416,7 @@ if (params.input_file) {
     	mv Log.out STAR.${file_tag}.Log.out || true
     	mv Log.progress.out STAR.${file_tag}.Log.progress.out || true
     	mv Log.std.out STAR.${file_tag}.Log.std.out || true
-    	"""
+    	'''
 }
 
     process SPLICE_JUNCT_TRIM {

@@ -364,8 +364,6 @@ if (params.input_file) {
 
     	"""
     	set -euo pipefail
-
-		#input_f1="${pair1}"
     	rgline="ID:!{file_tag} SM:!{file_tag} !{params.RG}"
 
     if [ -n "!{pair2}" ] && [ "\$(basename !{pair2})" != "NO_fastq2" ]; then

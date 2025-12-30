@@ -358,36 +358,30 @@ if (params.input_file) {
 		path "*SJ.out.tab" , emit: SJ_out_others
 
 		script:
-    	'''
-		#!/bin/bash
+		def align_threads = Math.max(1, params.cpu.intdiv(2))
+    	def sort_threads  = Math.max(1, params.cpu.intdiv(2) - 1)
+    	def sort_mem      = Math.max(1, params.mem.intdiv(4))
+
+    	"""
     	set -euo pipefail
 
-align_threads=$(( !{params.cpu.intdiv(2)} ))
-[ $align_threads -lt 1 ] && align_threads=1
-
-sort_threads=$(( !{params.cpu.intdiv(2)} - 1 ))
-[ $sort_threads -lt 1 ] && sort_threads=1
-
-sort_mem=$(( !{params.mem.intdiv(4)} ))
-[ $sort_mem -lt 1 ] && sort_mem=1
-
 		//input_f1="${pair1}"
-		rgline="ID:!{file_tag} SM:!{file_tag} !{params.RG}"
+    	rgline="ID:${file_tag} SM:${file_tag} ${params.RG}"
 
-    	if [ -n "!{pair2}" ] && [ "$(basename "!{pair2}")" != "NO_fastq2" ]; then
-        	pairs="!{pair1} !{pair2}"
-    	else
-        	pairs="!{pair1}"
-    	fi
+    if [ -n "${pair2}" ] && [ "\$(basename "${pair2}")" != "NO_fastq2" ]; then
+        pairs="${pair1} ${pair2}"
+    else
+        pairs="${pair1}"
+    fi
 
-STAR --outSAMattrRGline "$rgline" --outSAMmapqUnique !{params.STAR_mapqUnique} \
-     --outReadsUnmapped None --runThreadN $align_threads \
-     --genomeDir . --sjdbGTFfile "!{gtf}" --readFilesCommand zcat --readFilesIn $pairs --outStd SAM \
-     | samblaster --addMateTags \
-     | sambamba view -S -f bam -l 0 /dev/stdin \
-     | sambamba sort -t $sort_threads -m "${sort_mem}G" --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+STAR --outSAMattrRGline "\$rgline" --outSAMmapqUnique ${params.STAR_mapqUnique} \
+         --outReadsUnmapped None --runThreadN ${align_threads} \
+         --genomeDir . --sjdbGTFfile "${gtf}" --readFilesCommand zcat --readFilesIn \$pairs --outStd SAM \
+         | samblaster --addMateTags \
+         | sambamba view -S -f bam -l 0 /dev/stdin \
+         | sambamba sort -t ${sort_threads} -m "${sort_mem}G" --tmpdir=${file_tag}_tmp -o ${file_tag}.bam /dev/stdin
 	  	
-		sambamba index -t $sort_threads ${file_tag}.bam
+		sambamba index -t ${sort_threads} ${file_tag}.bam
 
     	mv Chimeric.out.junction STAR.${file_tag}.Chimeric.SJ.out.junction || true
     	mv SJ.out.tab STAR.${file_tag}.SJ.out.tab || true
@@ -395,7 +389,7 @@ STAR --outSAMattrRGline "$rgline" --outSAMmapqUnique !{params.STAR_mapqUnique} \
     	mv Log.out STAR.${file_tag}.Log.out || true
     	mv Log.progress.out STAR.${file_tag}.Log.progress.out || true
     	mv Log.std.out STAR.${file_tag}.Log.std.out || true
-    	'''
+"""
 }
 
     process SPLICE_JUNCT_TRIM {

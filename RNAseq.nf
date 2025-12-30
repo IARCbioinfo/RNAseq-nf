@@ -359,28 +359,28 @@ if (params.input_file) {
 		tuple val(file_tag), path("*SJ.out.junction") , emit: SJ_out
 		path "*SJ.out.tab" , emit: SJ_out_others
 
-		script:
-    	def align_threads = (task.cpus / 2) > 0 ? (task.cpus / 2) as int : 1
-    	def sort_threads  = (task.cpus / 2 - 1) > 0 ? (task.cpus / 2 - 1) as int : 1
-    	def sort_mem      = (params.mem / 4) as int
+		def align_threads = (task.cpus / 2) > 0 ? (task.cpus / 2) as int : 1
+		def sort_threads  = (task.cpus / 2 - 1) > 0 ? (task.cpus / 2 - 1) as int : 1
+		def sort_mem      = (params.mem / 4) as int
 
+		script:
     	"""
     	set -euo pipefail
 		
-	    rgline="ID:${file_tag} SM:${file_tag} ${params.RG}"
-		if [ "\$(basename ${pair2})" != "NO_fastq2" ]; then
-        	pairs="${pair1} ${pair2}"
-    	else
-        	pairs="${pair1}"
-    	fi
+		rgline="ID:${file_tag} SM:${file_tag} ${params.RG}"
+		if [ -n "${pair2}" ] && [ "$(basename ${pair2})" != "NO_fastq2" ]; then
+    		pairs="${pair1} ${pair2}"
+		else
+    		pairs="${pair1}"
+		fi
 		STAR \
         --genomeDir ${star_index} \
         --sjdbGTFfile ${gtf} \
-        --runThreadN \$align_threads \
+        --runThreadN ${align_threads} \
         --readFilesCommand zcat \
         --readFilesIn \$pairs \
         --outStd SAM \
-        --outSAMattrRGline "\$rgline" \
+        --outSAMattrRGline "${rgline}" \
         --outSAMmapqUnique ${params.STAR_mapqUnique} \
         --chimSegmentMin 12 \
         --chimJunctionOverhangMin 12 \
@@ -400,7 +400,7 @@ if (params.input_file) {
         --outReadsUnmapped None \
     	| samblaster --addMateTags \
     	| sambamba view -S -f bam -l 0 /dev/stdin \
-    	| sambamba sort -t \$sort_threads -m \${sort_mem}G --tmpdir=${file_tag}_tmp -o ${file_tag}.bam /dev/stdin
+    	| sambamba sort -t ${sort_threads} -m ${sort_mem}G --tmpdir=${file_tag}_tmp -o ${file_tag}.bam /dev/stdin
 	  	
 		sambamba index -t \$sort_threads ${file_tag}.bam
 

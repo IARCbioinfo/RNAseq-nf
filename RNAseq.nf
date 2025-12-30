@@ -362,13 +362,9 @@ if (params.input_file) {
 		script:
     	"""
     	set -euo pipefail
-		align_threads=$(( !{task.cpus} / 2 ))
-    	(( align_threads < 1 )) && align_threads=1
-
-    	sort_threads=$(( !{task.cpus} / 2 - 1 ))
-    	(( sort_threads < 1 )) && sort_threads=1
-
-    	sort_mem=$(( !{task.memory.toMega()} / 4 / 1024 ))  # Convert MB -> GB
+		align_threads=$(( ${task.cpus.intdiv(2)} ))
+		sort_threads=$(( ${task.cpus.intdiv(2) - 1} ))
+		sort_mem=$(( ${params.mem.intdiv(4)} )) # Convert MB -> GB
 		
 	    rgline="ID:${file_tag} SM:${file_tag} ${params.RG}"
 		if [ "\$(basename ${pair2})" != "NO_fastq2" ]; then

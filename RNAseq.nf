@@ -237,7 +237,7 @@ if (params.input_file) {
 		script:
 		basename1=pair1.name.replace(".${params.fastq_ext}","") //baseName.split("\\.")[0]
 		basename2=pair2.name.replace(".${params.fastq_ext}","") //baseName.split("\\.")[0]
-    	if(suffix2){
+    	if(${params.suffix2}){
         	pairs="${pair1} ${pair2}"
     		}else{
         	pairs="${pair1}"

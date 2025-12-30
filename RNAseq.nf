@@ -286,7 +286,7 @@ if (params.input_file) {
 		// from readPairs
 
         output:
-        set val(file_tag), val(rg), file("${file_tag}${rg}*val_1.fq.gz"), file("${file_tag}${rg}*val_2.fq.gz") , emit: readPairs2
+        tuple val(file_tag), val(rg), file("${file_tag}${rg}*val_1.fq.gz"), file("${file_tag}${rg}*val_2.fq.gz") , emit: readPairs2
         path "*_fastqc.zip" , emit: fastqc_postpairs
         path "*trimming_report.txt" , emit: trimming_reports
 
@@ -330,9 +330,9 @@ if (params.input_file) {
 		// from gtf
 
 		output:
-		set val(file_tag), val(rg), file("${file_tag}.bam"), file("${file_tag}.bam.bai") , emit: bam_files
+		tuple val(file_tag), val(rg), file("${file_tag}.bam"), file("${file_tag}.bam.bai") , emit: bam_files
 		path "*Log*" , emit: align_out
-		set val(file_tag), file("*SJ.out.junction") , emit: SJ_out
+		tuple val(file_tag), file("*SJ.out.junction") , emit: SJ_out
 		path "*SJ.out.tab" , emit: SJ_out_others
 
 		script:
@@ -378,7 +378,7 @@ if (params.input_file) {
 		// from fasta_ref_dict
 
         output:
-        set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") , emit: bam_files2
+        tuple val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") , emit: bam_files2
 
         script:
         '''
@@ -422,7 +422,7 @@ if (params.input_file) {
         output:
         path "*_recal.table" , emit: recal_table_files
         path "*plots.pdf" , emit: recal_plots_files
-        set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") , emit: bam_files3
+        tuple val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") , emit: bam_files3
 
         script:
         '''

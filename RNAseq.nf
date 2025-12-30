@@ -241,7 +241,7 @@ if (params.input_file) {
 			fastqc -t ${task.cpus} ${pair1} ${pair2}
 			mv ${basename1}_fastqc.zip ${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip
 		else
-			fastqc -t !{task.cpus} !{pair1}
+			fastqc -t ${task.cpus} ${pair1}
 			mv ${basename1}_fastqc.zip ${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip
 		fi
     '''

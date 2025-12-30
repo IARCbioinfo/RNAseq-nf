@@ -374,7 +374,7 @@ if (params.input_file) {
         pairs="${pair1}"
     fi
 
-STAR --outSAMattrRGline "\$rgline" --outSAMmapqUnique ${params.STAR_mapqUnique} \
+STAR --outSAMattrRGline "${rgline}" --outSAMmapqUnique ${params.STAR_mapqUnique} \
          --outReadsUnmapped None --runThreadN ${align_threads} \
          --genomeDir ""${aligner_ref}" --sjdbGTFfile "${gtf}" --readFilesCommand zcat --readFilesIn \$pairs --outStd SAM \
          | samblaster --addMateTags \

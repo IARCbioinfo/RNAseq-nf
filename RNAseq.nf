@@ -376,7 +376,7 @@ if (params.input_file) {
 
 STAR --outSAMattrRGline "\$rgline" --outSAMmapqUnique ${params.STAR_mapqUnique} \
          --outReadsUnmapped None --runThreadN ${align_threads} \
-         --genomeDir . --sjdbGTFfile "${gtf}" --readFilesCommand zcat --readFilesIn \$pairs --outStd SAM \
+         --genomeDir ""${aligner_ref}" --sjdbGTFfile "${gtf}" --readFilesCommand zcat --readFilesIn \$pairs --outStd SAM \
          | samblaster --addMateTags \
          | sambamba view -S -f bam -l 0 /dev/stdin \
          | sambamba sort -t ${sort_threads} -m "${sort_mem}G" --tmpdir=${file_tag}_tmp -o ${file_tag}.bam /dev/stdin

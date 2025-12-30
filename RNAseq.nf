@@ -356,7 +356,7 @@ if (params.input_file) {
     tuple val(file_tag), path("*SJ.out.junction"), emit: SJ_out
     path "*SJ.out.tab", emit: SJ_out_others
 
-script:
+	script:
 	"""
 	set -euo pipefail
 
@@ -392,7 +392,7 @@ script:
     mv Log.out STAR.!{file_tag}.Log.out || true
     mv Log.progress.out STAR.!{file_tag}.Log.progress.out || true
     mv Log.std.out STAR.!{file_tag}.Log.std.out || true
-"""
+	"""
 }
 
     process SPLICE_JUNCT_TRIM {

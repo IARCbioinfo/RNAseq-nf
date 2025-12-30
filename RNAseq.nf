@@ -236,14 +236,15 @@ if (params.input_file) {
 
 		script:
 		'''
-		ext = "${params.fastq_ext}"
-		basename1=$(basename ${pair1} .\$ext)
-		if [ -n "${pair2}" ] && [ "$(basename ${pair2})" != "NO_fastq2" ]; then
-			fastqc -t ${params.cpu} ${pair1} ${pair2}
-			mv ${basename1}_fastqc.zip ${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip
+		ext = '${params.fastq_ext}'
+		threads = '${params.cpu}'
+		basename1 = \$(basename "${pair1}" .\$ext)
+		if [ -n "${pair2}" ] && [ "\$(basename "${pair2}")" != "NO_fastq2" ]; then
+			fastqc -t \$threads "${pair1}" "${pair2}"
+			mv "\${basename1}_fastqc.zip" "${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip"
 		else
-			fastqc -t ${params.cpu} ${pair1}
-			mv ${basename1}_fastqc.zip ${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip
+			fastqc -t \$threads "${pair1}"
+			mv "\${basename1}_fastqc.zip" "${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip"
 		fi
     '''
 }

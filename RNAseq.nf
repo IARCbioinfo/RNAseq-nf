@@ -320,7 +320,6 @@ if (params.input_file) {
 		set -euo pipefail
 
         cpu_tg=\$(( ${task.cpus} - 1 ))
-        //cpu_tg2=$(echo "$cpu_tg/3.5" | bc -l)
         cpu_tg3=\$(python - <<PY
 		import math
 		print(max(1, int(math.ceil(${task.cpus} / 3.5))))

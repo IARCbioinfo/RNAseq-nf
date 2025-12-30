@@ -205,7 +205,8 @@ if (params.input_file) {
         memory "${params.mem_QC}G"
 
         input:
-        set val(file_tag), val(rg), path(infile) from files
+        tuple val(file_tag), val(rg), path(infile) 
+		// from files
 
         output:
         tuple val(file_tag), val(file_tag), file("${file_tag}_1.fq.gz"), file("${file_tag}_2.fq.gz"), emit: readPairs0
@@ -223,7 +224,8 @@ if (params.input_file) {
 		memory "${params.mem_QC}GB"
 
 		input:
-		set val(file_tag), val(rg), path(pair1), path(pair2) from readPairs
+		tuple val(file_tag), val(rg), path(pair1), path(pair2) 
+		//from readPairs
 
 		output:
 		file("*_pretrim_fastqc.zip"), emit: fastqc_pairs
@@ -249,8 +251,10 @@ if (params.input_file) {
 		memory "${params.mem_QC}GB"
 
 		input:
-		file fastqc1 from fastqc_pairs
-		file multiqc_config from multiqc
+		file fastqc1 
+		// from fastqc_pairs
+		file multiqc_config 
+		// from multiqc
 
 		output:
 		file("multiqc_pretrim_report.html") , emit: multiqc_pre
@@ -276,7 +280,8 @@ if (params.input_file) {
         memory "${params.mem_QC}GB"
 
         input:
-        set val(file_tag), val(rg), path(pair1), path(pair2) from readPairs
+        tuple val(file_tag), val(rg), path(pair1), path(pair2) 
+		// from readPairs
 
         output:
         set val(file_tag), val(rg), file("${file_tag}${rg}*val_1.fq.gz"), file("${file_tag}${rg}*val_2.fq.gz") , emit: readPairs2
@@ -315,9 +320,12 @@ if (params.input_file) {
 		memory "${params.mem}G"
 
 		input:
-		set val(file_tag), val(rg), path(pair1), path(pair2) from readPairs_for_align
-		file ref from aligner_ref
-		file gtf from gtf
+		tuple val(file_tag), val(rg), path(pair1), path(pair2) 
+		// from readPairs_for_align
+		file ref 
+		// from aligner_ref
+		file gtf
+		// from gtf
 
 		output:
 		set val(file_tag), val(rg), file("${file_tag}.bam"), file("${file_tag}.bam.bai") , emit: bam_files
@@ -358,10 +366,14 @@ if (params.input_file) {
         memory "${params.mem}G"
 
         input:
-        set val(file_tag), val(rg), path(bam), path(bai) from bam_files
-        file fasta_ref from fasta_ref
-        file fasta_ref_fai from fasta_ref_fai
-        file fasta_ref_dict from fasta_ref_dict
+        tuple val(file_tag), val(rg), path(bam), path(bai)
+		// from bam_files
+        file fasta_ref
+		// from fasta_ref
+        file fasta_ref_fai
+		// from fasta_ref_fai
+        file fasta_ref_dict
+		// from fasta_ref_dict
 
         output:
         set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") , emit: bam_files2
@@ -388,14 +400,22 @@ if (params.input_file) {
                    }
 
         input:
-        set val(file_tag), val(rg), path("${file_tag}.bam"), path("${file_tag}.bam.bai") from bam_files_for_bqsr
-        file known_snps from known_snps
-        file known_snps_index from known_snps_index
-        file known_indels from known_indels
-        file known_indels_index from known_indels_index
-        file fasta_ref from fasta_ref
-        file fasta_ref_fai from fasta_ref_fai
-        file fasta_ref_dict from fasta_ref_dict
+        tuple val(file_tag), val(rg), path("${file_tag}.bam"), path("${file_tag}.bam.bai")
+		// from bam_files_for_bqsr
+        file known_snps
+		// from known_snps
+        file known_snps_index
+		// from known_snps_index
+        file known_indels
+		// from known_indels
+        file known_indels_index
+		// from known_indels_index
+        file fasta_ref
+		// from fasta_ref
+        file fasta_ref_fai
+		// from fasta_ref_fai
+        file fasta_ref_dict
+		// from fasta_ref_dict
 
         output:
         file("*_recal.table") , emit: recal_table_files
@@ -419,8 +439,10 @@ if (params.input_file) {
 		memory "${params.mem_QC}GB"
 
 		input:
-			set val(file_tag), val(rg), path(bam), path(bai) from bam_files_for_quantif
-			file bed from bed
+			tuple val(file_tag), val(rg), path(bam), path(bai)
+			// from bam_files_for_quantif
+			file bed
+			// from bed
 
 		output:
 			file("${file_tag}_readdist.txt") , emit: rseqc_files
@@ -443,8 +465,10 @@ if (params.input_file) {
 		memory "${params.mem_QC}GB"
 	
 		input:
-		set val(file_tag), val(rg), path(bam), path(bai) from bam_files_for_quantif
-		file bed from bed
+		tuple val(file_tag), val(rg), path(bam), path(bai)
+		// from bam_files_for_quantif
+		file bed
+		// from bed
 
 		output:
 		file("*readdist.txt") , emit: rseqc_files_split
@@ -467,8 +491,10 @@ if (params.input_file) {
 		memory { (params.sjtrim || params.recalibration) ? "${params.mem}G" : "${params.mem_QC}G" }()
 
 		input:
-		set val(file_tag), val(rg), path(bam), path(bai) from bam_files_for_quantif
-		file gtf from gtf
+		tuple val(file_tag), val(rg), path(bam), path(bai)
+		// from bam_files_for_quantif
+		file gtf
+		// from gtf
 
 		output:
 		file("${file_tag}_count.txt") , emit: htseq_files
@@ -499,15 +525,24 @@ if (params.input_file) {
 		memory "${params.mem_QC}GB"
 
 		input:
-		file STAR from align_out
-		file htseq from htseq_files
-		file rseqc_clip from rseqc_clip_files
-		file rseqc from rseqc_files
-		file rseqc_jsat from rseqc_jsat_files
-		file trim from trimming_reports.ifEmpty([])
-		file fastqcpost from fastqc_postpairs.ifEmpty([])
-		file rseqc_split from rseqc_files_split.ifEmpty([])
-		file multiqc_config from multiqc
+		file STAR
+		// from align_out
+		file htseq
+		// from htseq_files
+		file rseqc_clip
+		// from rseqc_clip_files
+		file rseqc
+		// from rseqc_files
+		file rseqc_jsat
+		// from rseqc_jsat_files
+		file trim
+		// from trimming_reports.ifEmpty([])
+		file fastqcpost
+		// from fastqc_postpairs.ifEmpty([])
+		file rseqc_split
+		// from rseqc_files_split.ifEmpty([])
+		file multiqc_config
+		// from multiqc
 
 		output:
 		file("multiqc_posttrim_report.html") , emit: multiqc_post

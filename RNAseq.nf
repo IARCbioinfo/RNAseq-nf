@@ -490,7 +490,7 @@ if (params.input_file) {
 	process QUANTIFICATION {
 		tag { file_tag }
 		cpus params.cpu
-		memory { (params.sjtrim || params.recalibration) ? "${params.mem}G" : "${params.mem_QC}G" }()
+		memory { (params.sjtrim || params.recalibration) ? "${params.mem}G" : "${params.mem_QC}G" }
 
 		input:
 		tuple val(file_tag), val(rg), path(bam), path(bai)

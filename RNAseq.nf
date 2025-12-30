@@ -639,7 +639,8 @@ workflow {
     // 2. MULTIQC PRETRIM
     // --------------------------------------------------------------
 
-	MULTIQC_PRETRIM(fastqc1.fastqc_pairs,multiqc)
+	fastqc_pretrim_all = fastqc1.collect()
+	MULTIQC_PRETRIM(fastqc_pretrim_all,multiqc)
 
 /*    // --------------------------------------------------------------
     // 3. OPTIONAL ADAPTER TRIMMING
@@ -709,7 +710,15 @@ workflow {
     // 10. MULTIQC POSTRIM
     // --------------------------------------------------------------
 
-    MULTIQC_POSTTRIM(align.align_out,quant.htseq_files,rs.rseqc_clip_files,rs.rseqc_files,rs.rseqc_jsat_files,trim_reports_ch,fastqc_postpairs_ch,rss.rseqc_files_split,multiqc)
+	align_out_all        = align.align_out.collect()
+	htseq_all            = quant.htseq_files.collect()
+	rseqc_clip_all       = rs.rseqc_clip_files.collect()
+	rseqc_all            = rs.rseqc_files.collect()
+	rseqc_jsat_all       = rs.rseqc_jsat_files.collect()
+	trim_reports_all     = trim_reports_ch.collect()
+	fastqc_post_all      = fastqc_postpairs_ch.collect()
+	rseqc_split_all      = rss.rseqc_files_split.collect()
 
+	MULTIQC_POSTTRIM(align_out_all,htseq_all,rseqc_clip_all,rseqc_all,rseqc_jsat_all,trim_reports_all,fastqc_post_all,rseqc_split_all,multiqc)
 */
 }

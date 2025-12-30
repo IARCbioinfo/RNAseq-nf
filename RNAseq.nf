@@ -361,14 +361,14 @@ if (params.input_file) {
     	"""
     	set -euo pipefail
 
-		align_threads=$(( !{params.cpu} / 2 ))
-    	(( align_threads < 1 )) && align_threads=1
+		align_threads=$(expr !{params.cpu} / 2)
+    	if [ $align_threads -lt 1 ]; then align_threads=1; fi
 
-    	sort_threads=$(( !{params.cpu} / 2 - 1 ))
-    	(( sort_threads < 1 )) && sort_threads=1
+    	sort_threads=$(expr !{params.cpu} / 2 - 1)
+    	if [ $sort_threads -lt 1 ]; then sort_threads=1; fi
 
-    	sort_mem=$(( !{params.mem} / 4 ))
-    	(( sort_mem < 1 )) && sort_mem=1
+    	sort_mem=$(expr !{params.mem} / 4)
+    	if [ $sort_mem -lt 1 ]; then sort_mem=1; fi
 
 		input_f1="${pair1}"
 		rgline="ID:!{file_tag} SM:!{file_tag} !{params.RG}"
@@ -379,34 +379,14 @@ if (params.input_file) {
         	pairs="!{pair1}"
     	fi
 
-		STAR \
-        --genomeDir ${star_index} \
-        --sjdbGTFfile ${gtf} \
-        --runThreadN ${align_threads} \
-        --readFilesCommand zcat \
-        --readFilesIn \$pairs \
-        --outStd SAM \
-        --outSAMattrRGline "${rgline}" \
-        --outSAMmapqUnique ${params.STAR_mapqUnique} \
-        --chimSegmentMin 12 \
-        --chimJunctionOverhangMin 12 \
-        --chimSegmentReadGapMax 3 \
-        --alignSJDBoverhangMin 10 \
-        --alignMatesGapMax 100000 \
-        --alignIntronMax 100000 \
-        --alignSJstitchMismatchNmax 5 -1 5 5 \
-        --outSAMstrandField intronMotif \
-        --chimMultimapScoreRange 10 \
-        --chimMultimapNmax 10 \
-        --chimNonchimScoreDropMin 10 \
-        --peOverlapNbasesMin 12 \
-        --peOverlapMMp 0.1 \
-        --chimOutJunctionFormat 1 \
-        --twopassMode Basic \
-        --outReadsUnmapped None \
-    	| samblaster --addMateTags \
-    	| sambamba view -S -f bam -l 0 /dev/stdin \
-    	| sambamba sort -t ${sort_threads} -m ${sort_mem}G --tmpdir=${file_tag}_tmp -o ${file_tag}.bam /dev/stdin
+		STAR --outSAMattrRGline "$rgline" --outSAMmapqUnique !{params.STAR_mapqUnique} \
+        	--chimSegmentMin 12 --chimJunctionOverhangMin 12 \
+        	--alignSJDBoverhangMin 10 --alignMatesGapMax 100000 --alignIntronMax 100000 \
+        	--outReadsUnmapped None --runThreadN $align_threads \
+        	--genomeDir . --sjdbGTFfile "!{gtf}" --readFilesCommand zcat --readFilesIn $pairs --outStd SAM \
+        	| samblaster --addMateTags \
+        	| sambamba view -S -f bam -l 0 /dev/stdin \
+        	| sambamba sort -t $sort_threads -m "${sort_mem}G" --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
 	  	
 		sambamba index -t \$sort_threads ${file_tag}.bam
 

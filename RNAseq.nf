@@ -211,13 +211,14 @@ if (params.input_file) {
 		// from files
 
         output:
-        tuple val(file_tag), val(rg), file("${file_tag}_1.fq.gz"), file("${file_tag}_2.fq.gz"), emit: readPairs0
+        tuple val(file_tag), val(rg), path("${file_tag}${params.suffix1}.${params.fastq_ext}"), path("${file_tag}${params.suffix2}.${params.fastq_ext}"),, emit: readPairs0
 
         script:
-        '''
-        set -o pipefail
-        samtools collate -uOn 128 !{infile} tmp_!{infile.baseName} | samtools fastq -1 !{infile.baseName}!{params.suffix1}.!{params.fastq_ext} -2 !{infile.baseName}!{params.suffix2}.!{params.fastq_ext} -
-        '''
+        """
+        set -euo pipefail
+        samtools collate -u -O -n 128 ${infile} tmp_${file_tag} |
+		samtools fastq -1 ${file_tag}${params.suffix1}.${params.fastq_ext} -2 ${file_tag}${params.suffix2}.${params.fastq_ext} -0 /dev/null -s /dev/null -n -
+        """
     }
 
 	process FASTQC_PRETRIM {
@@ -279,23 +280,23 @@ if (params.input_file) {
 		publishDir "${params.output_folder}/QC", mode: 'copy'
 
 		script:
- """
-    set -euo pipefail
+ 		"""
+    	set -euo pipefail
 
-    config_file='${multiqc_config}'
+    	config_file='${multiqc_config}'
 
-    if [ "\$(basename "\$config_file")" = "NO_FILE" ]; then
-        opt=""
-    else
-        opt="--config \$config_file"
-    fi
+    	if [ "\$(basename "\$config_file")" = "NO_FILE" ]; then
+        	opt=""
+    	else
+        	opt="--config \$config_file"
+    	fi
 
- 	while IFS= read -r -d '' f; do
+ 		while IFS= read -r -d '' f; do
         	cp --remove-destination "\$(readlink "\$f")" "\$f" || true
-    	done < <(find . -name "*_pretrim_fastqc.zip" -type l -print0)
-  	multiqc . -n multiqc_pretrim_report.html -m fastqc \$opt --comment "RNA-seq Pre-trimming QC report"
-    """
-	}
+    		done < <(find . -name "*_pretrim_fastqc.zip" -type l -print0)
+  		multiqc . -n multiqc_pretrim_report.html -m fastqc \$opt --comment "RNA-seq Pre-trimming QC report"
+    		"""
+		}
 
     process ADAPTER_TRIMMING {
         tag { file_tag + rg }
@@ -307,33 +308,41 @@ if (params.input_file) {
 		// from readPairs
 
         output:
-        tuple val(file_tag), val(rg), file("${file_tag}${rg}*val_1.fq.gz"), file("${file_tag}${rg}*val_2.fq.gz") , emit: readPairs2
+//        tuple val(file_tag), val(rg), path("${file_tag}${rg}*val_1.fq.gz"), path("${file_tag}${rg}*val_2.fq.gz") , emit: readPairs2
+		tuple val(file_tag), val(rg), path("${file_tag}${rg}_val_1.fq.gz"), path("${file_tag}${rg}_val_2.fq.gz"), emit: readPairs2
         path "*_fastqc.zip" , emit: fastqc_postpairs
         path "*trimming_report.txt" , emit: trimming_reports
 
-        publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: '{*report.txt,*fastqc.zip}'
+        publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: ''*report.txt,*fastqc.zip'
 
         script:
-        '''
-        cpu_tg=$((${params.cpu_trim} - 1))
-        cpu_tg2=$(echo "$cpu_tg/3.5" | bc -l)
-        cpu_tg3=$(python - <<'PY'
-		import math,sys
-		v=float(sys.argv[1])
-		print(int(math.ceil(v)))
+        """
+		set -euo pipefail
+
+        cpu_tg=\$(( ${task.cpus} - 1 ))
+        //cpu_tg2=$(echo "$cpu_tg/3.5" | bc -l)
+        cpu_tg3=\$(python - <<PY
+		import math
+		print(max(1, int(math.ceil(${task.cpus} / 3.5))))
 		PY
-		$cpu_tg2)
-        if [ -n "${pair2}" ] && [ "$(basename ${pair2})" != "NO_fastq2" ]; then
-            opts="--paired"
-        else
-            opts=""
-        fi
-        trim_galore ${opts} --fastqc --gzip --basename ${file_tag}${rg} -j ${cpu_tg3} ${pair1} ${pair2}
-        if [ ! -L NO_fastq2 ]; then
-            mv ${file_tag}${rg}_trimmed.fq.gz ${file_tag}${rg}_val_1.fq.gz
-            touch ${file_tag}${rg}_val_2.fq.gz
-        fi
-        '''
+		)
+		if [ "\$(basename ${pair2})" != "NO_fastq2" ]; then
+        	opts="--paired"
+        	trim_galore \$opts --fastqc --gzip \
+            	--basename ${file_tag}${rg} \
+            	-j \$cpu_tg3 \
+            	${pair1} ${pair2}
+    	else
+        	trim_galore --fastqc --gzip \
+            	--basename ${file_tag}${rg} \
+            	-j \$cpu_tg3 \
+            	${pair1}
+
+        # Normalise to paired-like outputs
+        	mv ${file_tag}${rg}_trimmed.fq.gz ${file_tag}${rg}_val_1.fq.gz
+        	touch ${file_tag}${rg}_val_2.fq.gz
+   		fi
+        """
     }
 
 
@@ -613,8 +622,8 @@ workflow {
                           .map { path -> tuple(path.baseName, '', path) }
 		
 		def bam2fq_out = BAM2FASTQ(files)
-        readPairs = bam2fq_out.out.readPairs0
-        readPairs2 = bam2fq_out.out.readPairs0
+        readPairs = bam2fq_out.readPairs0
+        readPairs2 = bam2fq_out.readPairs0
 		} 
 	
 	// IF FASTQ as input: build readPairs/readPairs2 channels if not already filled /////
@@ -642,7 +651,7 @@ workflow {
 	fastqc_pretrim_all = fastqc1.collect()
 	MULTIQC_PRETRIM(fastqc_pretrim_all,multiqc)
 
-/*    // --------------------------------------------------------------
+    // --------------------------------------------------------------
     // 3. OPTIONAL ADAPTER TRIMMING
     // --------------------------------------------------------------
 
@@ -657,7 +666,7 @@ workflow {
 	} else {
 			readPairs_for_align = readPairs
     		}
-
+/*
     // --------------------------------------------------------------
     // 4. ALIGNMENT
     // --------------------------------------------------------------

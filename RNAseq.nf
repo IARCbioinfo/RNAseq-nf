@@ -208,7 +208,6 @@ if (params.input_file) {
 
         input:
         tuple val(file_tag), val(rg), path(infile) 
-		// from files
 
         output:
         tuple val(file_tag), val(rg), path("${file_tag}${params.suffix1}.${params.fastq_ext}"), path("${file_tag}${params.suffix2}.${params.fastq_ext}"), emit: readPairs0
@@ -228,7 +227,6 @@ if (params.input_file) {
 
 		input:
 		tuple val(file_tag), val(rg), path(pair1), path(pair2) 
-		//from readPairs
 
 		output:
 		path "*_pretrim_fastqc.zip", emit: fastqc_pairs
@@ -269,9 +267,7 @@ if (params.input_file) {
 
 		input:
 		path fastqc1 
-		// from fastqc_pairs
 		path multiqc_config 
-		// from multiqc
 
 		output:
 		path "multiqc_pretrim_report.html" , emit: multiqc_pre
@@ -344,7 +340,6 @@ if (params.input_file) {
         """
     }
 
-
 	process ALIGNMENT {
 		tag { file_tag }
 		cpus params.cpu
@@ -352,43 +347,69 @@ if (params.input_file) {
 
 		input:
 		tuple val(file_tag), val(rg), path(pair1), path(pair2) 
-		// from readPairs_for_align
-		path ref 
+		path star_index
+		// path ref 
 		// from aligner_ref
 		path gtf
 		// from gtf
 
 		output:
-		tuple val(file_tag), val(rg), file("${file_tag}.bam"), file("${file_tag}.bam.bai") , emit: bam_files
+		tuple val(file_tag), val(rg), path("${file_tag}.bam"), path("${file_tag}.bam.bai") , emit: bam_files
 		path "*Log*" , emit: align_out
-		tuple val(file_tag), file("*SJ.out.junction") , emit: SJ_out
+		tuple val(file_tag), path("*SJ.out.junction") , emit: SJ_out
 		path "*SJ.out.tab" , emit: SJ_out_others
 
 		script:
-		'''
-	    align_threads=$(( ${params.cpu} / 2 ))
-	    sort_threads=$(( ${params.cpu} / 2 - 1 ))
-	    sort_mem=$(( ${params.mem} / 4 ))
-		input_f1="${pair1}"
+    	"""
+    	set -euo pipefail
+    	align_threads=\$(( ${task.cpus} / 2 ))
+    	sort_threads=\$(( max(1, ${task.cpus} / 2 - 1) ))
+    	sort_mem=\$(( ${task.memory.toGiga()} / 4 ))
+		
 	    rgline="ID:${file_tag} SM:${file_tag} ${params.RG}"
-		if [ -n "${pair2}" ] && [ "$(basename ${pair2})" != "NO_fastq2" ]; then
-			pairs="${pair1} ${pair2}"
-		else
-			pairs="${pair1}"
-		fi
-		STAR --outSAMattrRGline "${rgline}" --outSAMmapqUnique ${params.STAR_mapqUnique} --chimSegmentMin 12 --chimJunctionOverhangMin 12 \
-		--chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 100000 --alignIntronMax 100000 \
-		--alignSJstitchMismatchNmax 5 -1 5 5 --outSAMstrandField intronMotif --chimMultimapScoreRange 10 --chimMultimapNmax 10 \
-		--chimNonchimScoreDropMin 10 --peOverlapNbasesMin 12 --peOverlapMMp 0.1 --chimOutJunctionFormat 1 --twopassMode Basic \
-		--outReadsUnmapped None --runThreadN ${align_threads} --genomeDir . --sjdbGTFfile ${gtf} --readFilesCommand zcat \
-		--readFilesIn ${pairs} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t ${sort_threads} -m ${sort_mem}G --tmpdir=${file_tag}_tmp -o ${file_tag}.bam /dev/stdin
-		mv Chimeric.out.junction STAR.${file_tag}.Chimeric.SJ.out.junction || true
-		mv SJ.out.tab STAR.${file_tag}.SJ.out.tab || true
-		mv Log.final.out STAR.${file_tag}.Log.final.out || true
-		mv Log.out STAR.${file_tag}.Log.out || true
-		mv Log.progress.out STAR.${file_tag}.Log.progress.out || true
-		mv Log.std.out STAR.${file_tag}.Log.std.out || true
-		'''
+		if [ "\$(basename ${pair2})" != "NO_fastq2" ]; then
+        	pairs="${pair1} ${pair2}"
+    	else
+        	pairs="${pair1}"
+    	fi
+		STAR \
+        --genomeDir ${star_index} \
+        --sjdbGTFfile ${gtf} \
+        --runThreadN \$align_threads \
+        --readFilesCommand zcat \
+        --readFilesIn \$pairs \
+        --outStd SAM \
+        --outSAMattrRGline "\$rgline" \
+        --outSAMmapqUnique ${params.STAR_mapqUnique} \
+        --chimSegmentMin 12 \
+        --chimJunctionOverhangMin 12 \
+        --chimSegmentReadGapMax 3 \
+        --alignSJDBoverhangMin 10 \
+        --alignMatesGapMax 100000 \
+        --alignIntronMax 100000 \
+        --alignSJstitchMismatchNmax 5 -1 5 5 \
+        --outSAMstrandField intronMotif \
+        --chimMultimapScoreRange 10 \
+        --chimMultimapNmax 10 \
+        --chimNonchimScoreDropMin 10 \
+        --peOverlapNbasesMin 12 \
+        --peOverlapMMp 0.1 \
+        --chimOutJunctionFormat 1 \
+        --twopassMode Basic \
+        --outReadsUnmapped None \
+    	| samblaster --addMateTags \
+    	| sambamba view -S -f bam -l 0 /dev/stdin \
+    	| sambamba sort -t \$sort_threads -m \${sort_mem}G --tmpdir=${file_tag}_tmp -o ${file_tag}.bam /dev/stdin
+	  	
+		sambamba index -t \$sort_threads ${file_tag}.bam
+
+    	mv Chimeric.out.junction STAR.${file_tag}.Chimeric.SJ.out.junction || true
+    	mv SJ.out.tab STAR.${file_tag}.SJ.out.tab || true
+    	mv Log.final.out STAR.${file_tag}.Log.final.out || true
+    	mv Log.out STAR.${file_tag}.Log.out || true
+    	mv Log.progress.out STAR.${file_tag}.Log.progress.out || true
+    	mv Log.std.out STAR.${file_tag}.Log.std.out || true
+    	"""
 }
 
     process SPLICE_JUNCT_TRIM {
@@ -665,7 +686,7 @@ workflow {
 	} else {
 			readPairs_for_align = readPairs
     		}
-/*
+
     // --------------------------------------------------------------
     // 4. ALIGNMENT
     // --------------------------------------------------------------
@@ -675,7 +696,8 @@ workflow {
     // --------------------------------------------------------------
     // 5. OPTIONAL SPLICE JUNCTION TRIM
     // --------------------------------------------------------------
-    
+
+/*
 	def bam_files_for_bqsr
 	if (params.sjtrim) {
         def sjt = SPLICE_JUNCT_TRIM(align.bam_files,fasta_ref,fasta_ref_fai,fasta_ref_dict)

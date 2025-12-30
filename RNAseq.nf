@@ -232,23 +232,33 @@ if (params.input_file) {
 		output:
 		path "*_pretrim_fastqc.zip", emit: fastqc_pairs
 
-		publishDir "${params.output_folder}/QC/fastq", mode: 'copy', pattern: '{*fastqc.zip}'
+		publishDir "${params.output_folder}/QC/fastq", mode: 'copy', pattern: '*fastqc.zip'
 
 		script:
-		basename1=pair1.name.replace(".${params.fastq_ext}","") //baseName.split("\\.")[0]
-		basename2=pair2.name.replace(".${params.fastq_ext}","") //baseName.split("\\.")[0]
-    	if(${params.suffix2}){
-        	pairs="${pair1} ${pair2}"
-    		}else{
-        	pairs="${pair1}"
-    		}
-    	'''
-		fastqc -t !{task.cpus} !{pairs}
-		mv !{basename1}_fastqc.zip !{file_tag}!{params.suffix1}!{rg}_pretrim_fastqc.zip
-		if [ ! -L NO_fastq2 ]
-        	then mv !{basename2}_fastqc.zip !{file_tag}!{params.suffix2}!{rg}_pretrim_fastqc.zip 
-    	fi 
-    	'''
+		"""
+    	set -euo pipefail
+
+    	ext='${params.fastq_ext}'
+    	suffix1='${params.suffix1}'
+    	suffix2='${params.suffix2}'
+
+    	pair1_file='${pair1}'
+    	pair2_file='${pair2}'
+    	file_tag='${file_tag}'
+    	rg='${rg}'
+
+    	basename1=\$(basename "\$pair1_file" ".\$ext")
+
+    	if [ "\$(basename "\$pair2_file")" != "NO_fastq2" ]; then
+        	basename2=\$(basename "\$pair2_file" ".\$ext")
+        	fastqc -t ${task.cpus} "\$pair1_file" "\$pair2_file"
+       	 	mv "\${basename1}_fastqc.zip" "\${file_tag}\${suffix1}\${rg}_pretrim_fastqc.zip"
+        	mv "\${basename2}_fastqc.zip" "\${file_tag}\${suffix2}\${rg}_pretrim_fastqc.zip"
+    	else
+        	fastqc -t ${task.cpus} "\$pair1_file"
+        	mv "\${basename1}_fastqc.zip" "\${file_tag}\${suffix1}\${rg}_pretrim_fastqc.zip"
+    	fi
+    	"""
 }
 
 	process MULTIQC_PRETRIM {

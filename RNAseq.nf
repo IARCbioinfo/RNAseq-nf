@@ -235,7 +235,7 @@ if (params.input_file) {
 		publishDir "${params.output_folder}/QC/fastq", mode: 'copy', pattern: '{*fastqc.zip}'
 
 		script:
-		'''
+		"""
 		ext = '${params.fastq_ext}'
 		threads = '${params.cpu}'
 		basename1 = \$(basename "${pair1}" .\$ext)
@@ -246,7 +246,7 @@ if (params.input_file) {
 			fastqc -t \$threads "${pair1}"
 			mv "\${basename1}_fastqc.zip" "${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip"
 		fi
-    '''
+ 	   """
 }
 
 	process MULTIQC_PRETRIM {

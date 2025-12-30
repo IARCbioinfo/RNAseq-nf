@@ -621,7 +621,7 @@ workflow {
 
 	MULTIQC_PRETRIM(fastqc1.fastqc_pairs,multiqc)
 
-    // --------------------------------------------------------------
+/*    // --------------------------------------------------------------
     // 3. OPTIONAL ADAPTER TRIMMING
     // --------------------------------------------------------------
 
@@ -690,4 +690,6 @@ workflow {
     // --------------------------------------------------------------
 
     MULTIQC_POSTTRIM(align.align_out,quant.htseq_files,rs.rseqc_clip_files,rs.rseqc_files,rs.rseqc_jsat_files,trim_reports_ch,fastqc_postpairs_ch,rss.rseqc_files_split,multiqc)
+
+*/
 }

@@ -358,19 +358,23 @@ if (params.input_file) {
 		path "*SJ.out.tab" , emit: SJ_out_others
 
 		script:
-    	"""
+    	'''
+		#!/bin/bash
     	set -euo pipefail
 
-		align_threads=$(expr !{params.cpu} / 2)
-    	if [ $align_threads -lt 1 ]; then align_threads=1; fi
+		cpu_threads=!{params.cpu}
+		mem_g=!{params.mem}
 
-    	sort_threads=$(expr !{params.cpu} / 2 - 1)
-    	if [ $sort_threads -lt 1 ]; then sort_threads=1; fi
+		align_threads=$(( cpu_threads / 2 ))
+		[ $align_threads -lt 1 ] && align_threads=1
 
-    	sort_mem=$(expr !{params.mem} / 4)
-    	if [ $sort_mem -lt 1 ]; then sort_mem=1; fi
+		sort_threads=$(( cpu_threads / 2 - 1 ))
+		[ $sort_threads -lt 1 ] && sort_threads=1
 
-		input_f1="${pair1}"
+		sort_mem=$(( mem_g / 4 ))
+		[ $sort_mem -lt 1 ] && sort_mem=1
+
+		//input_f1="${pair1}"
 		rgline="ID:!{file_tag} SM:!{file_tag} !{params.RG}"
 
     	if [ -n "!{pair2}" ] && [ "$(basename "!{pair2}")" != "NO_fastq2" ]; then
@@ -379,16 +383,14 @@ if (params.input_file) {
         	pairs="!{pair1}"
     	fi
 
-		STAR --outSAMattrRGline "$rgline" --outSAMmapqUnique !{params.STAR_mapqUnique} \
-        	--chimSegmentMin 12 --chimJunctionOverhangMin 12 \
-        	--alignSJDBoverhangMin 10 --alignMatesGapMax 100000 --alignIntronMax 100000 \
-        	--outReadsUnmapped None --runThreadN $align_threads \
-        	--genomeDir . --sjdbGTFfile "!{gtf}" --readFilesCommand zcat --readFilesIn $pairs --outStd SAM \
-        	| samblaster --addMateTags \
-        	| sambamba view -S -f bam -l 0 /dev/stdin \
-        	| sambamba sort -t $sort_threads -m "${sort_mem}G" --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+STAR --outSAMattrRGline "$rgline" --outSAMmapqUnique !{params.STAR_mapqUnique} \
+     --outReadsUnmapped None --runThreadN $align_threads \
+     --genomeDir . --sjdbGTFfile "!{gtf}" --readFilesCommand zcat --readFilesIn $pairs --outStd SAM \
+     | samblaster --addMateTags \
+     | sambamba view -S -f bam -l 0 /dev/stdin \
+     | sambamba sort -t $sort_threads -m "${sort_mem}G" --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
 	  	
-		sambamba index -t \$sort_threads ${file_tag}.bam
+		sambamba index -t $sort_threads ${file_tag}.bam
 
     	mv Chimeric.out.junction STAR.${file_tag}.Chimeric.SJ.out.junction || true
     	mv SJ.out.tab STAR.${file_tag}.SJ.out.tab || true
@@ -396,7 +398,7 @@ if (params.input_file) {
     	mv Log.out STAR.${file_tag}.Log.out || true
     	mv Log.progress.out STAR.${file_tag}.Log.progress.out || true
     	mv Log.std.out STAR.${file_tag}.Log.std.out || true
-    	"""
+    	'''
 }
 
     process SPLICE_JUNCT_TRIM {

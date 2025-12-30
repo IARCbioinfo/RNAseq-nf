@@ -630,8 +630,8 @@ workflow {
 	if (params.cutadapt) {
  	def trim = ADAPTER_TRIMMING(readPairs)
 	readPairs_for_align = readPairs2
-	trim_reports_ch = trimming_reports
-	fastqc_postpairs_ch = fastqc_postpairs
+	trim_reports_ch = trim.trimming_reports
+	fastqc_postpairs_ch = trim.fastqc_postpairs
 	} else {
 			readPairs_for_align = readPairs
     		}

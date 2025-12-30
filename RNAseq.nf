@@ -236,13 +236,13 @@ if (params.input_file) {
 
 		script:
 		'''
-		basename1=$(basename !{pair1} .!{params.fastq_ext})
-		if [ -n "!{pair2}" ] && [ "$(basename !{pair2})" != "NO_fastq2" ]; then
-			fastqc -t !{task.cpus} !{pair1} !{pair2}
-			mv ${basename1}_fastqc.zip !{file_tag}!{params.suffix1}!{rg}_pretrim_fastqc.zip
+		basename1=$(basename ${pair1} .${params.fastq_ext})
+		if [ -n "${pair2}" ] && [ "$(basename ${pair2})" != "NO_fastq2" ]; then
+			fastqc -t ${task.cpus} ${pair1} ${pair2}
+			mv ${basename1}_fastqc.zip ${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip
 		else
 			fastqc -t !{task.cpus} !{pair1}
-			mv ${basename1}_fastqc.zip !{file_tag}!{params.suffix1}!{rg}_pretrim_fastqc.zip
+			mv ${basename1}_fastqc.zip ${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip
 		fi
     '''
 }
@@ -266,10 +266,10 @@ if (params.input_file) {
 
 		script:
 		'''
-		if [ "$(basename !{multiqc_config})" == "NO_FILE" ]; then
+		if [ "$(basename ${multiqc_config})" == "NO_FILE" ]; then
 			opt=""
 		else
-			opt="--config !{multiqc_config}"
+			opt="--config ${multiqc_config}"
 		fi
 		for f in $(find . -name "*_pretrim_fastqc.zip" -type l); do cp --remove-destination $(readlink $f) $f || true; done
 		multiqc . -n multiqc_pretrim_report.html -m fastqc ${opt} --comment "RNA-seq Pre-trimming QC report"
@@ -294,7 +294,7 @@ if (params.input_file) {
 
         script:
         '''
-        cpu_tg=$((!{params.cpu_trim} - 1))
+        cpu_tg=$((${params.cpu_trim} - 1))
         cpu_tg2=$(echo "$cpu_tg/3.5" | bc -l)
         cpu_tg3=$(python - <<'PY'
 		import math,sys
@@ -302,15 +302,15 @@ if (params.input_file) {
 		print(int(math.ceil(v)))
 		PY
 		$cpu_tg2)
-        if [ -n "!{pair2}" ] && [ "$(basename !{pair2})" != "NO_fastq2" ]; then
+        if [ -n "${pair2}" ] && [ "$(basename ${pair2})" != "NO_fastq2" ]; then
             opts="--paired"
         else
             opts=""
         fi
-        trim_galore ${opts} --fastqc --gzip --basename !{file_tag}!{rg} -j ${cpu_tg3} !{pair1} !{pair2}
+        trim_galore ${opts} --fastqc --gzip --basename ${file_tag}${rg} -j ${cpu_tg3} ${pair1} ${pair2}
         if [ ! -L NO_fastq2 ]; then
-            mv !{file_tag}!{rg}_trimmed.fq.gz !{file_tag}!{rg}_val_1.fq.gz
-            touch !{file_tag}!{rg}_val_2.fq.gz
+            mv ${file_tag}${rg}_trimmed.fq.gz ${file_tag}${rg}_val_1.fq.gz
+            touch ${file_tag}${rg}_val_2.fq.gz
         fi
         '''
     }
@@ -337,28 +337,28 @@ if (params.input_file) {
 
 		script:
 		'''
-		align_threads=$(( !{params.cpu} / 2 ))
-		sort_threads=$(( !{params.cpu} / 2 - 1 ))
-		sort_mem=$(( !{params.mem} / 4 ))
-		input_f1="!{pair1}"
-		rgline="ID:!{file_tag} SM:!{file_tag} !{params.RG}"
-		if [ -n "!{pair2}" ] && [ "$(basename !{pair2})" != "NO_fastq2" ]; then
-			pairs="!{pair1} !{pair2}"
+	    align_threads=$(( ${params.cpu} / 2 ))
+	    sort_threads=$(( ${params.cpu} / 2 - 1 ))
+	    sort_mem=$(( ${params.mem} / 4 ))
+		input_f1="${pair1}"
+	    rgline="ID:${file_tag} SM:${file_tag} ${params.RG}"
+		if [ -n "${pair2}" ] && [ "$(basename ${pair2})" != "NO_fastq2" ]; then
+			pairs="${pair1} ${pair2}"
 		else
-			pairs="!{pair1}"
+			pairs="${pair1}"
 		fi
-		STAR --outSAMattrRGline "${rgline}" --outSAMmapqUnique !{params.STAR_mapqUnique} --chimSegmentMin 12 --chimJunctionOverhangMin 12 \
+		STAR --outSAMattrRGline "${rgline}" --outSAMmapqUnique ${params.STAR_mapqUnique} --chimSegmentMin 12 --chimJunctionOverhangMin 12 \
 		--chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 100000 --alignIntronMax 100000 \
 		--alignSJstitchMismatchNmax 5 -1 5 5 --outSAMstrandField intronMotif --chimMultimapScoreRange 10 --chimMultimapNmax 10 \
 		--chimNonchimScoreDropMin 10 --peOverlapNbasesMin 12 --peOverlapMMp 0.1 --chimOutJunctionFormat 1 --twopassMode Basic \
-		--outReadsUnmapped None --runThreadN ${align_threads} --genomeDir . --sjdbGTFfile !{gtf} --readFilesCommand zcat \
-		--readFilesIn ${pairs} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t ${sort_threads} -m ${sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+		--outReadsUnmapped None --runThreadN ${align_threads} --genomeDir . --sjdbGTFfile ${gtf} --readFilesCommand zcat \
+		--readFilesIn ${pairs} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t ${sort_threads} -m ${sort_mem}G --tmpdir=${file_tag}_tmp -o ${file_tag}.bam /dev/stdin
 		mv Chimeric.out.junction STAR.${file_tag}.Chimeric.SJ.out.junction || true
-		mv SJ.out.tab STAR.!{file_tag}.SJ.out.tab || true
-		mv Log.final.out STAR.!{file_tag}.Log.final.out || true
-		mv Log.out STAR.!{file_tag}.Log.out || true
-		mv Log.progress.out STAR.!{file_tag}.Log.progress.out || true
-		mv Log.std.out STAR.!{file_tag}.Log.std.out || true
+		mv SJ.out.tab STAR.${file_tag}.SJ.out.tab || true
+		mv Log.final.out STAR.${file_tag}.Log.final.out || true
+		mv Log.out STAR.${file_tag}.Log.out || true
+		mv Log.progress.out STAR.${file_tag}.Log.progress.out || true
+		mv Log.std.out STAR.${file_tag}.Log.std.out || true
 		'''
 }
 
@@ -383,8 +383,8 @@ if (params.input_file) {
         script:
         '''
         file_tag_new=!{file_tag}_split
-        gatk SplitNCigarReads --java-options "-Xmx!{params.mem}G" -R !{fasta_ref} -I !{bam} -O !{file_tag_new}.bam
-        mv !{file_tag_new}.bai !{file_tag_new}.bam.bai || true
+        gatk SplitNCigarReads --java-options "-Xmx${params.mem}G" -R ${fasta_ref} -I ${bam} -O ${file_tag_new}.bam
+        mv ${file_tag_new}.bai ${file_tag_new}.bam.bai || true
         '''
     }
 
@@ -426,12 +426,12 @@ if (params.input_file) {
 
         script:
         '''
-        file_tag_new=!{file_tag}_BQSRecalibrated
-        gatk BaseRecalibrator --java-options "-Xmx${params.mem}G" -R !{fasta_ref} -I !{file_tag}.bam --known-sites !{known_snps} --known-sites !{known_indels} -O !{file_tag}_recal.table
-        gatk ApplyBQSR --java-options "-Xmx${params.mem}G" -R !{fasta_ref} -I !{file_tag}.bam --bqsr-recal-file !{file_tag}_recal.table -O !{file_tag_new}.bam
-        gatk BaseRecalibrator --java-options "-Xmx${params.mem}G" -R !{fasta_ref} -I !{file_tag_new}.bam --known-sites !{known_snps} --known-sites !{known_indels} -O !{file_tag_new}_recal.table
-        gatk AnalyzeCovariates --java-options "-Xmx${params.mem}G" -before !{file_tag}_recal.table -after !{file_tag_new}_recal.table -plots !{file_tag_new}_recalibration_plots.pdf
-        mv !{file_tag_new}.bai !{file_tag_new}.bam.bai || true
+        file_tag_new=${file_tag}_BQSRecalibrated
+        gatk BaseRecalibrator --java-options "-Xmx${params.mem}G" -R ${fasta_ref} -I ${file_tag}.bam --known-sites ${known_snps} --known-sites ${known_indels} -O ${file_tag}_recal.table
+        gatk ApplyBQSR --java-options "-Xmx${params.mem}G" -R ${fasta_ref} -I ${file_tag}.bam --bqsr-recal-file ${file_tag}_recal.table -O ${file_tag_new}.bam
+        gatk BaseRecalibrator --java-options "-Xmx${params.mem}G" -R ${fasta_ref} -I ${file_tag_new}.bam --known-sites ${known_snps} --known-sites ${known_indels} -O ${file_tag_new}_recal.table
+        gatk AnalyzeCovariates --java-options "-Xmx${params.mem}G" -before ${file_tag}_recal.table -after ${file_tag_new}_recal.table -plots ${file_tag_new}_recalibration_plots.pdf
+        mv ${file_tag_new}.bai ${file_tag_new}.bam.bai || true
         '''
     }
 
@@ -455,9 +455,9 @@ if (params.input_file) {
 
 		script:
 		'''
-		read_distribution.py -i !{bam} -r !{bed} > !{file_tag}_readdist.txt
-		clipping_profile.py  -i !{bam} -s "PE" -o !{file_tag}_clipping
-		junction_saturation.py -i !{bam} -r !{bed} -o !{file_tag}_jun_saturation
+		read_distribution.py -i ${bam} -r ${bed} > ${file_tag}_readdist.txt
+		clipping_profile.py  -i ${bam} -s "PE" -o ${file_tag}_clipping
+		junction_saturation.py -i ${bam} -r ${bed} -o ${file_tag}_jun_saturation
 		'''
 }
 
@@ -479,10 +479,10 @@ if (params.input_file) {
 
 		script:
 		'''
-		basename=$(basename !{bam})
+		basename=$(basename ${bam})
 		samtools split !{bam} -f "%*_%!.%."
 		for f in ${basename}_*.bam; do
-			read_distribution.py -i $f -r !{bed} > ${f%.bam}_readdist.txt
+			read_distribution.py -i $f -r ${bed} > ${f%.bam}_readdist.txt
 		done
 		'''
 }
@@ -506,15 +506,15 @@ if (params.input_file) {
 		script:
 		'''
 		buffer=""
-		if [ -n "!{params.htseq_maxreads}" ]; then
-			buffer="--max-reads-in-buffer !{params.htseq_maxreads}"
+		if [ -n "${params.htseq_maxreads}" ]; then
+			buffer="--max-reads-in-buffer ${params.htseq_maxreads}"
 		fi
-		if [ -n "!{params.sjtrim}" ] || [ -n "!{params.recalibration}" ]; then
-			mv !{file_tag}.bam !{file_tag}_coordinate_sorted.bam
-			sambamba sort -n -t !{task.cpus} -m !{params.mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam ${file_tag}_coordinate_sorted.bam
-			htseq-count -n !{params.cpu} -r name -s !{params.stranded} -f bam !{file_tag}.bam !{gtf} ${buffer} --additional-attr=gene_name > !{file_tag}_count.txt
+		if [ -n "${params.sjtrim}" ] || [ -n "${params.recalibration}" ]; then
+			mv ${file_tag}.bam ${file_tag}_coordinate_sorted.bam
+			sambamba sort -n -t ${task.cpus} -m ${params.mem}G --tmpdir=${file_tag}_tmp -o ${file_tag}.bam ${file_tag}_coordinate_sorted.bam
+			htseq-count -n ${params.cpu} -r name -s ${params.stranded} -f bam ${file_tag}.bam ${gtf} ${buffer} --additional-attr=gene_name > ${file_tag}_count.txt
 		else
-			htseq-count -n !{params.cpu} -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{gtf} ${buffer} --additional-attr=gene_name > !{file_tag}_count.txt
+			htseq-count -n ${params.cpu} -r pos -s ${params.stranded} -f bam ${file_tag}.bam ${gtf} ${buffer} --additional-attr=gene_name > ${file_tag}_count.txt
 		fi
 		'''
 }
@@ -552,10 +552,10 @@ if (params.input_file) {
 
 		script:
 		'''
-		if [ "$(basename !{multiqc_config})" == "NO_FILE" ]; then
+		if [ "$(basename ${multiqc_config})" == "NO_FILE" ]; then
 			opt=""
 		else
-			opt="--config !{multiqc_config}"
+			opt="--config ${multiqc_config}"
 		fi
 		if compgen -G "*fastq.zip" > /dev/null; then
 			for f in $(find . -name "*_fastqc.zip" -type l); do cp --remove-destination $(readlink $f) $f || true; done

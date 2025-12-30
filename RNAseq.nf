@@ -222,7 +222,7 @@ if (params.input_file) {
 
 	process FASTQC_PRETRIM {
 		tag { file_tag }
-		cpus params.cpu
+		//cpus params.cpu
 		memory "${params.mem_QC}GB"
 
 		input:
@@ -236,12 +236,13 @@ if (params.input_file) {
 
 		script:
 		'''
-		basename1=$(basename ${pair1} .${params.fastq_ext})
+		ext = "${params.fastq_ext}"
+		basename1=$(basename ${pair1} .\$ext)
 		if [ -n "${pair2}" ] && [ "$(basename ${pair2})" != "NO_fastq2" ]; then
-			fastqc -t ${task.cpus} ${pair1} ${pair2}
+			fastqc -t ${params.cpu} ${pair1} ${pair2}
 			mv ${basename1}_fastqc.zip ${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip
 		else
-			fastqc -t ${task.cpus} ${pair1}
+			fastqc -t ${params.cpu} ${pair1}
 			mv ${basename1}_fastqc.zip ${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip
 		fi
     '''

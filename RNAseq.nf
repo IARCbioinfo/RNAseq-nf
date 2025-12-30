@@ -359,13 +359,17 @@ if (params.input_file) {
 		tuple val(file_tag), path("*SJ.out.junction") , emit: SJ_out
 		path "*SJ.out.tab" , emit: SJ_out_others
 
-		def align_threads = (task.cpus / 2) > 0 ? (task.cpus / 2) as int : 1
-		def sort_threads  = (task.cpus / 2 - 1) > 0 ? (task.cpus / 2 - 1) as int : 1
-		def sort_mem      = (params.mem / 4) as int
-
 		script:
     	'''
     	set -euo pipefail
+
+		align_threads=$(( ${task.cpus} / 2 ))
+		(( align_threads < 1 )) && align_threads=1
+
+		sort_threads=$(( ${task.cpus} / 2 - 1 ))
+		(( sort_threads < 1 )) && sort_threads=1
+
+		sort_mem=$(( ${task.memory.toMega() / 4 / 1024 / 1024 }))G
 
 		input_f1="${pair1}"
 		rgline="ID:${file_tag} SM:${file_tag} ${params.RG}"
@@ -374,10 +378,6 @@ if (params.input_file) {
 		else
     		pairs="${pair1}"
 		fi
-
-		align_threads=!{align_threads}
-		sort_threads=!{sort_threads}
-		sort_mem=!{sort_mem}
 
 		STAR \
         --genomeDir ${star_index} \

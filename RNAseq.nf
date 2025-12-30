@@ -211,7 +211,7 @@ if (params.input_file) {
 		// from files
 
         output:
-        tuple val(file_tag), val(rg), path("${file_tag}${params.suffix1}.${params.fastq_ext}"), path("${file_tag}${params.suffix2}.${params.fastq_ext}"),, emit: readPairs0
+        tuple val(file_tag), val(rg), path("${file_tag}${params.suffix1}.${params.fastq_ext}"), path("${file_tag}${params.suffix2}.${params.fastq_ext}"), emit: readPairs0
 
         script:
         """

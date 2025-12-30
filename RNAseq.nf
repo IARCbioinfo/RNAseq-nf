@@ -356,7 +356,7 @@ if (params.input_file) {
     tuple val(file_tag), path("*SJ.out.junction"), emit: SJ_out
     path "*SJ.out.tab", emit: SJ_out_others
 
-	script: """
+	script:
    def align_threads = Math.max(1, params.cpu.intdiv(2))
     def sort_threads  = Math.max(1, params.cpu.intdiv(2) - 1)
     def sort_mem      = Math.max(1, params.mem.intdiv(4))

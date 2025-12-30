@@ -313,7 +313,7 @@ if (params.input_file) {
         path "*_fastqc.zip" , emit: fastqc_postpairs
         path "*trimming_report.txt" , emit: trimming_reports
 
-        publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: ''*report.txt,*fastqc.zip'
+        publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: '*report.txt,*fastqc.zip'
 
         script:
         """

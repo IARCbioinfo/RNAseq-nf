@@ -222,7 +222,7 @@ if (params.input_file) {
 
 	process FASTQC_PRETRIM {
 		tag { file_tag }
-		//cpus params.cpu
+		cpus params.cpu
 		memory "${params.mem_QC}GB"
 
 		input:
@@ -235,21 +235,20 @@ if (params.input_file) {
 		publishDir "${params.output_folder}/QC/fastq", mode: 'copy', pattern: '{*fastqc.zip}'
 
 		script:
-		"""
-		#!/bin/bash
-    	set -euo pipefail
-
-		ext = '${params.fastq_ext}'
-		threads = '${params.cpu}'
-		basename1 = '${basename} ${pair1} .\${ext})'
-		if [ -n "${pair2}" ] && [ "\$(basename "${pair2}")" != "NO_fastq2" ]; then
-			fastqc -t \${threads} ${pair1} ${pair2}
-			mv \${basename1}_fastqc.zip ${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip
-		else
-			fastqc -t \${threads} "${pair1}"
-			mv \${basename1}_fastqc.zip ${file_tag}${params.suffix1}${rg}_pretrim_fastqc.zip
-		fi
- 	   """
+		basename1=pair1.name.replace(".${params.fastq_ext}","") //baseName.split("\\.")[0]
+		basename2=pair2.name.replace(".${params.fastq_ext}","") //baseName.split("\\.")[0]
+    	if(suffix2){
+        	pairs="${pair1} ${pair2}"
+    		}else{
+        	pairs="${pair1}"
+    		}
+    	'''
+		fastqc -t !{task.cpus} !{pairs}
+		mv !{basename1}_fastqc.zip !{file_tag}!{params.suffix1}!{rg}_pretrim_fastqc.zip
+		if [ ! -L NO_fastq2 ]
+        	then mv !{basename2}_fastqc.zip !{file_tag}!{params.suffix2}!{rg}_pretrim_fastqc.zip 
+    	fi 
+    	'''
 }
 
 	process MULTIQC_PRETRIM {

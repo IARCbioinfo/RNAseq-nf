@@ -362,17 +362,14 @@ if (params.input_file) {
 		#!/bin/bash
     	set -euo pipefail
 
-		cpu_threads=!{params.cpu}
-		mem_g=!{params.mem}
+align_threads=$(( !{params.cpu.intdiv(2)} ))
+[ $align_threads -lt 1 ] && align_threads=1
 
-		align_threads=$(( cpu_threads / 2 ))
-		[ $align_threads -lt 1 ] && align_threads=1
+sort_threads=$(( !{params.cpu.intdiv(2)} - 1 ))
+[ $sort_threads -lt 1 ] && sort_threads=1
 
-		sort_threads=$(( cpu_threads / 2 - 1 ))
-		[ $sort_threads -lt 1 ] && sort_threads=1
-
-		sort_mem=$(( mem_g / 4 ))
-		[ $sort_mem -lt 1 ] && sort_mem=1
+sort_mem=$(( !{params.mem.intdiv(4)} ))
+[ $sort_mem -lt 1 ] && sort_mem=1
 
 		//input_f1="${pair1}"
 		rgline="ID:!{file_tag} SM:!{file_tag} !{params.RG}"

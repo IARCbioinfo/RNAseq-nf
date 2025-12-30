@@ -211,7 +211,7 @@ if (params.input_file) {
 		// from files
 
         output:
-        tuple val(file_tag), val(file_tag), file("${file_tag}_1.fq.gz"), file("${file_tag}_2.fq.gz"), emit: readPairs0
+        tuple val(file_tag), val(rg), file("${file_tag}_1.fq.gz"), file("${file_tag}_2.fq.gz"), emit: readPairs0
 
         script:
         '''
@@ -618,7 +618,7 @@ workflow {
     // 2. MULTIQC PRETRIM
     // --------------------------------------------------------------
 
-	MULTIQC_PRETRIM(fastqc1,multiqc)
+	MULTIQC_PRETRIM(fastqc1.fastqc_pairs,multiqc)
 
     // --------------------------------------------------------------
     // 3. OPTIONAL ADAPTER TRIMMING
@@ -661,7 +661,7 @@ workflow {
 	def bam_files_for_quantif
 	if (params.recalibration) {
         def bq = BASE_QUALITY_SCORE_RECALIBRATION(bam_files_for_bqsr,known_snps,known_snps_index,known_indels,known_indels_index,fasta_ref,fasta_ref_fai,fasta_ref_dict)
-		bam_files_for_quantif = bam_files3
+		bam_files_for_quantif = bq.bam_files3
 		} else {
         		bam_files_for_quantif = bam_files_for_bqsr
     			} 
@@ -688,5 +688,5 @@ workflow {
     // 10. MULTIQC POSTRIM
     // --------------------------------------------------------------
 
-    MULTIQC_POSTTRIM(align.align_out,quant,rs.rseqc_clip_files,rs.rseqc_files,rs.rseqc_jsat_files,trim_reports_ch,fastqc_postpairs_ch,rss,multiqc)
+    MULTIQC_POSTTRIM(align.align_out,quant.htseq_files,rs.rseqc_clip_files,rs.rseqc_files,rs.rseqc_jsat_files,trim_reports_ch,fastqc_postpairs_ch,rss.rseqc_files_split,multiqc)
 }

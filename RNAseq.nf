@@ -135,7 +135,9 @@ if ((params.sjtrim != null) || (params.recalibration != null)) {
 bed = file(params.bed)
 gtf = file(params.gtf)
 
-multiqc = file(params.multiqc_config)
+multiqc = params.multiqc_config == 'NO_FILE'
+    ? Channel.empty()
+    : file(params.multiqc_config)
 
 def aligner_ref
 if (params.hisat2) {
@@ -322,9 +324,9 @@ if (params.input_file) {
 		input:
 		tuple val(file_tag), val(rg), path(pair1), path(pair2) 
 		// from readPairs_for_align
-		file ref 
+		path ref 
 		// from aligner_ref
-		file gtf
+		path gtf
 		// from gtf
 
 		output:
@@ -580,7 +582,7 @@ workflow {
 
 	// If file as input
      if (mode == 'infile') {
-   		readPairs = Channel.fromPath("${params.input_file}")
+   		readPairs = Channel.fromPath(params.input_file)
         .splitCsv(header: true, sep: '\t', strip: true)
         .map { row -> tuple(row.SM, row.RG, file(row.pair1), file(row.pair2)) }
 		readPairs2 = readPairs
@@ -598,7 +600,7 @@ workflow {
 	
 	// IF FASTQ as input: build readPairs/readPairs2 channels if not already filled /////
 		else if (mode == 'fastq') {
-    		if (suffix2) {
+    		if (params.suffix2) {
         		readPairs = Channel.fromFilePairs("${params.input_folder}/*{${params.suffix1},${params.suffix2}}.${params.fastq_ext}")
                .map { row -> tuple(row[0], '', row[1][0], row[1][1]) }
     			} else {
@@ -625,9 +627,13 @@ workflow {
     // --------------------------------------------------------------
 
 	def readPairs_for_align
+	def trim_reports_ch = Channel.empty()
+	def fastqc_postpairs_ch = Channel.empty()
 	if (params.cutadapt) {
  	def trim = ADAPTER_TRIMMING(readPairs)
 	readPairs_for_align = trim.out.readPairs2
+	trim_reports_ch = trim.out.trimming_reports
+	fastqc_postpairs_ch = trim.out.fastqc_postpairs
 	} else {
 			readPairs_for_align = readPairs
     		}
@@ -684,5 +690,5 @@ workflow {
     // 10. MULTIQC POSTRIM
     // --------------------------------------------------------------
 
-    MULTIQC_POSTTRIM(align.out.align_out,quant.out.htseq_files,rs.out.rseqc_clip_files,rs.out.rseqc_files,rs.out.rseqc_jsat_files,trim.out.trimming_reports,trim.out.fastqc_postpairs,rss.out.rseqc_files_split,multiqc)
+    MULTIQC_POSTTRIM(align.out.align_out,quant.out.htseq_files,rs.out.rseqc_clip_files,rs.out.rseqc_files,rs.out.rseqc_jsat_files,trim_reports_ch,fastqc_postpairs_ch,rss.out.rseqc_files_split,multiqc)
 }

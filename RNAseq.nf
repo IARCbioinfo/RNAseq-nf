@@ -360,11 +360,12 @@ if (params.input_file) {
 		path "*SJ.out.tab" , emit: SJ_out_others
 
 		script:
+    	def align_threads = (task.cpus / 2) > 0 ? (task.cpus / 2) as int : 1
+    	def sort_threads  = (task.cpus / 2 - 1) > 0 ? (task.cpus / 2 - 1) as int : 1
+    	def sort_mem      = (params.mem / 4) as int
+
     	"""
     	set -euo pipefail
-		align_threads=$(( ${task.cpus.intdiv(2)} ))
-		sort_threads=$(( ${task.cpus.intdiv(2) - 1} ))
-		sort_mem=$(( ${params.mem.intdiv(4)} )) # Convert MB -> GB
 		
 	    rgline="ID:${file_tag} SM:${file_tag} ${params.RG}"
 		if [ "\$(basename ${pair2})" != "NO_fastq2" ]; then

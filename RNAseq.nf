@@ -226,7 +226,7 @@ if (params.input_file) {
 		set val(file_tag), val(rg), path(pair1), path(pair2) from readPairs
 
 		output:
-		file("*_pretrim_fastqc.zip") into fastqc_pairs
+		file("*_pretrim_fastqc.zip"), emit: fastqc_pairs
 
 		publishDir "${params.output_folder}/QC/fastq", mode: 'copy', pattern: '{*fastqc.zip}'
 
@@ -253,8 +253,8 @@ if (params.input_file) {
 		file multiqc_config from multiqc
 
 		output:
-		file("multiqc_pretrim_report.html") into multiqc_pre
-		file("multiqc_pretrim_report_data") into multiqc_pre_data
+		file("multiqc_pretrim_report.html") , emit: multiqc_pre
+		file("multiqc_pretrim_report_data") , emit: multiqc_pre_data
 
 		publishDir "${params.output_folder}/QC", mode: 'copy'
 
@@ -279,9 +279,9 @@ if (params.input_file) {
         set val(file_tag), val(rg), path(pair1), path(pair2) from readPairs
 
         output:
-        set val(file_tag), val(rg), file("${file_tag}${rg}*val_1.fq.gz"), file("${file_tag}${rg}*val_2.fq.gz") into readPairs2
-        file("*_fastqc.zip") into fastqc_postpairs
-        file("*trimming_report.txt") into trimming_reports
+        set val(file_tag), val(rg), file("${file_tag}${rg}*val_1.fq.gz"), file("${file_tag}${rg}*val_2.fq.gz") , emit: readPairs2
+        file("*_fastqc.zip") , emit: fastqc_postpairs
+        file("*trimming_report.txt") , emit: trimming_reports
 
         publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: '{*report.txt,*fastqc.zip}'
 
@@ -320,10 +320,10 @@ if (params.input_file) {
 		file gtf from gtf
 
 		output:
-		set val(file_tag), val(rg), file("${file_tag}.bam"), file("${file_tag}.bam.bai") into bam_files
-		file("*Log*") into align_out
-		set val(file_tag), file("*SJ.out.junction") into SJ_out
-		file("*SJ.out.tab") into SJ_out_others
+		set val(file_tag), val(rg), file("${file_tag}.bam"), file("${file_tag}.bam.bai") , emit: bam_files
+		file("*Log*") , emit: align_out
+		set val(file_tag), file("*SJ.out.junction") , emit: SJ_out
+		file("*SJ.out.tab") , emit: SJ_out_others
 
 		script:
 		'''
@@ -364,7 +364,7 @@ if (params.input_file) {
         file fasta_ref_dict from fasta_ref_dict
 
         output:
-        set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into bam_files2
+        set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") , emit: bam_files2
 
         script:
         '''
@@ -398,9 +398,9 @@ if (params.input_file) {
         file fasta_ref_dict from fasta_ref_dict
 
         output:
-        file("*_recal.table") into recal_table_files
-        file("*plots.pdf") into recal_plots_files
-        set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into bam_files3
+        file("*_recal.table") , emit: recal_table_files
+        file("*plots.pdf") , emit: recal_plots_files
+        set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") , emit: bam_files3
 
         script:
         '''
@@ -423,9 +423,9 @@ if (params.input_file) {
 			file bed from bed
 
 		output:
-			file("${file_tag}_readdist.txt") into rseqc_files
-			file("*clipping*") into rseqc_clip_files
-			file("*jun_saturation*") into rseqc_jsat_files
+			file("${file_tag}_readdist.txt") , emit: rseqc_files
+			file("*clipping*") , emit: rseqc_clip_files
+			file("*jun_saturation*") , emit: rseqc_jsat_files
 
 		publishDir "${params.output_folder}/QC/bam", mode: 'copy'
 
@@ -447,7 +447,7 @@ if (params.input_file) {
 		file bed from bed
 
 		output:
-		file("*readdist.txt") into rseqc_files_split
+		file("*readdist.txt") , emit: rseqc_files_split
 
 		publishDir "${params.output_folder}/QC/bam", mode: 'copy'
 
@@ -471,7 +471,7 @@ if (params.input_file) {
 		file gtf from gtf
 
 		output:
-		file("${file_tag}_count.txt") into htseq_files
+		file("${file_tag}_count.txt") , emit: htseq_files
 
 		publishDir "${params.output_folder}/counts", mode: 'copy'
 
@@ -510,8 +510,8 @@ if (params.input_file) {
 		file multiqc_config from multiqc
 
 		output:
-		file("multiqc_posttrim_report.html") into multiqc_post
-		file("multiqc_posttrim_report_data") into multiqc_post_data
+		file("multiqc_posttrim_report.html") , emit: multiqc_post
+		file("multiqc_posttrim_report_data") , emit: multiqc_post_data
 
 		publishDir "${params.output_folder}/QC", mode: 'copy'
 
@@ -583,7 +583,7 @@ workflow {
     // 2. MULTIQC PRETRIM
     // --------------------------------------------------------------
 
-	MULTIQC_PRETRIM()
+	MULTIQC_PRETRIM(fastqc_pairs,multiqc)
 
     // --------------------------------------------------------------
     // 3. OPTIONAL ADAPTER TRIMMING
@@ -591,7 +591,7 @@ workflow {
 
 	def readPairs_for_align
 	if (params.cutadapt) {
- 	ADAPTER_TRIMMING()
+ 	ADAPTER_TRIMMING(readPairs)
 	readPairs_for_align = readPairs2
 	} else {
 			readPairs_for_align = readPairs
@@ -601,7 +601,7 @@ workflow {
     // 4. ALIGNMENT
     // --------------------------------------------------------------
      
-	ALIGNMENT()
+	ALIGNMENT(readPairs_for_align,aligner_ref,gtf)
 
     // --------------------------------------------------------------
     // 5. OPTIONAL SPLICE JUNCTION TRIM
@@ -609,7 +609,7 @@ workflow {
     
 	def bam_files_for_bqsr
 	if (params.sjtrim) {
-        SPLICE_JUNCT_TRIM()
+        SPLICE_JUNCT_TRIM(bam_files,fasta_ref,fasta_ref_fai,fasta_ref_dict)
 		bam_files_for_bqsr = bam_files2
 		} else {
 				 bam_files_for_bqsr = bam_files
@@ -621,7 +621,7 @@ workflow {
 
 	def bam_files_for_quantif
 	if (params.recalibration) {
-        BASE_QUALITY_SCORE_RECALIBRATION()
+        BASE_QUALITY_SCORE_RECALIBRATION(bam_files_for_bqsr,known_snps,known_snps_index,known_indels,known_indels_index,fasta_ref,fasta_ref_fai,fasta_ref_dict)
 		bam_files_for_quantif = bam_files3
 		} else {
         		bam_files_for_quantif = bam_files_for_bqsr
@@ -631,24 +631,24 @@ workflow {
     // 7. RSEQC
     // --------------------------------------------------------------
 
-        RSEQC()
+    RSEQC(bam_files_for_quantif,bed)
 
     // --------------------------------------------------------------
     // 8. RSEQCSPLIT
     // --------------------------------------------------------------
 
-    RSEQCSPLIT()
+    RSEQCSPLIT(bam_files_for_quantif,bed)
 
 
     // --------------------------------------------------------------
     // 9. QUANTIFICATION (RNA only)
     // --------------------------------------------------------------
    
-	QUANTIFICATION()
+	QUANTIFICATION(bam_files_for_quantif,gtf)
 
     // --------------------------------------------------------------
     // 10. MULTIQC POSTRIM
     // --------------------------------------------------------------
 
-    MULTIQC_POSTTRIM()
+    MULTIQC_POSTTRIM(align_out,htseq_files,rseqc_clip_files,rseqc_files,rseqc_jsat_files,trimming_reports,fastqc_postpairs,rseqc_files_split,multiqc)
 }

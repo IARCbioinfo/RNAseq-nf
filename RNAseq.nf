@@ -230,7 +230,7 @@ if (params.input_file) {
 		//from readPairs
 
 		output:
-		file("*_pretrim_fastqc.zip"), emit: fastqc_pairs
+		path "*_pretrim_fastqc.zip", emit: fastqc_pairs
 
 		publishDir "${params.output_folder}/QC/fastq", mode: 'copy', pattern: '{*fastqc.zip}'
 
@@ -259,8 +259,8 @@ if (params.input_file) {
 		// from multiqc
 
 		output:
-		file("multiqc_pretrim_report.html") , emit: multiqc_pre
-		file("multiqc_pretrim_report_data") , emit: multiqc_pre_data
+		path "multiqc_pretrim_report.html" , emit: multiqc_pre
+		path "multiqc_pretrim_report_data" , emit: multiqc_pre_data
 
 		publishDir "${params.output_folder}/QC", mode: 'copy'
 
@@ -287,8 +287,8 @@ if (params.input_file) {
 
         output:
         set val(file_tag), val(rg), file("${file_tag}${rg}*val_1.fq.gz"), file("${file_tag}${rg}*val_2.fq.gz") , emit: readPairs2
-        file("*_fastqc.zip") , emit: fastqc_postpairs
-        file("*trimming_report.txt") , emit: trimming_reports
+        path "*_fastqc.zip" , emit: fastqc_postpairs
+        path "*trimming_report.txt" , emit: trimming_reports
 
         publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: '{*report.txt,*fastqc.zip}'
 
@@ -331,9 +331,9 @@ if (params.input_file) {
 
 		output:
 		set val(file_tag), val(rg), file("${file_tag}.bam"), file("${file_tag}.bam.bai") , emit: bam_files
-		file("*Log*") , emit: align_out
+		path "*Log*" , emit: align_out
 		set val(file_tag), file("*SJ.out.junction") , emit: SJ_out
-		file("*SJ.out.tab") , emit: SJ_out_others
+		path "*SJ.out.tab" , emit: SJ_out_others
 
 		script:
 		'''
@@ -420,8 +420,8 @@ if (params.input_file) {
 		// from fasta_ref_dict
 
         output:
-        file("*_recal.table") , emit: recal_table_files
-        file("*plots.pdf") , emit: recal_plots_files
+        path "*_recal.table" , emit: recal_table_files
+        path "*plots.pdf" , emit: recal_plots_files
         set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") , emit: bam_files3
 
         script:
@@ -447,9 +447,9 @@ if (params.input_file) {
 			// from bed
 
 		output:
-			file("${file_tag}_readdist.txt") , emit: rseqc_files
-			file("*clipping*") , emit: rseqc_clip_files
-			file("*jun_saturation*") , emit: rseqc_jsat_files
+			path "${file_tag}_readdist.txt" , emit: rseqc_files
+			path "*clipping*" , emit: rseqc_clip_files
+			path "*jun_saturation*" , emit: rseqc_jsat_files
 
 		publishDir "${params.output_folder}/QC/bam", mode: 'copy'
 
@@ -473,7 +473,7 @@ if (params.input_file) {
 		// from bed
 
 		output:
-		file("*readdist.txt") , emit: rseqc_files_split
+		path "*readdist.txt" , emit: rseqc_files_split
 
 		publishDir "${params.output_folder}/QC/bam", mode: 'copy'
 
@@ -499,7 +499,7 @@ if (params.input_file) {
 		// from gtf
 
 		output:
-		file("${file_tag}_count.txt") , emit: htseq_files
+		path "${file_tag}_count.txt" , emit: htseq_files
 
 		publishDir "${params.output_folder}/counts", mode: 'copy'
 
@@ -518,8 +518,6 @@ if (params.input_file) {
 		fi
 		'''
 }
-
-
 
 	process MULTIQC_POSTTRIM {
 		tag { "all" }
@@ -547,8 +545,8 @@ if (params.input_file) {
 		// from multiqc
 
 		output:
-		file("multiqc_posttrim_report.html") , emit: multiqc_post
-		file("multiqc_posttrim_report_data") , emit: multiqc_post_data
+		path "multiqc_posttrim_report.html" , emit: multiqc_post
+		path "multiqc_posttrim_report_data" , emit: multiqc_post_data
 
 		publishDir "${params.output_folder}/QC", mode: 'copy'
 

@@ -361,21 +361,23 @@ if (params.input_file) {
     	"""
     	set -euo pipefail
 
-		align_threads=$(( ${params.cpu} / 2 ))
+		align_threads=$(( !{params.cpu} / 2 ))
     	(( align_threads < 1 )) && align_threads=1
 
-    	sort_threads=$(( ${params.cpu} / 2 - 1 ))
+    	sort_threads=$(( !{params.cpu} / 2 - 1 ))
     	(( sort_threads < 1 )) && sort_threads=1
 
-    	sort_mem=$(( ${params.mem} / 4 ))
+    	sort_mem=$(( !{params.mem} / 4 ))
+    	(( sort_mem < 1 )) && sort_mem=1
 
 		input_f1="${pair1}"
-		rgline="ID:${file_tag} SM:${file_tag} ${params.RG}"
-		if [ -n "${pair2}" ] && [ "$(basename ${pair2})" != "NO_fastq2" ]; then
-    		pairs="${pair1} ${pair2}"
-		else
-    		pairs="${pair1}"
-		fi
+		rgline="ID:!{file_tag} SM:!{file_tag} !{params.RG}"
+
+    	if [ -n "!{pair2}" ] && [ "$(basename "!{pair2}")" != "NO_fastq2" ]; then
+        	pairs="!{pair1} !{pair2}"
+    	else
+        	pairs="!{pair1}"
+    	fi
 
 		STAR \
         --genomeDir ${star_index} \

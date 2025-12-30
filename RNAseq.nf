@@ -236,6 +236,9 @@ if (params.input_file) {
 
 		script:
 		"""
+		#!/bin/bash
+    	set -euo pipefail
+
 		ext = '${params.fastq_ext}'
 		threads = '${params.cpu}'
 		basename1 = \$(basename "${pair1}" .\$ext)

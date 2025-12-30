@@ -629,9 +629,9 @@ workflow {
 	def fastqc_postpairs_ch = Channel.empty()
 	if (params.cutadapt) {
  	def trim = ADAPTER_TRIMMING(readPairs)
-	readPairs_for_align = trim.out.readPairs2
-	trim_reports_ch = trim.out.trimming_reports
-	fastqc_postpairs_ch = trim.out.fastqc_postpairs
+	readPairs_for_align = readPairs2
+	trim_reports_ch = trimming_reports
+	fastqc_postpairs_ch = fastqc_postpairs
 	} else {
 			readPairs_for_align = readPairs
     		}
@@ -648,10 +648,10 @@ workflow {
     
 	def bam_files_for_bqsr
 	if (params.sjtrim) {
-        def sjt = SPLICE_JUNCT_TRIM(align.out.bam_files,fasta_ref,fasta_ref_fai,fasta_ref_dict)
+        def sjt = SPLICE_JUNCT_TRIM(bam_files,fasta_ref,fasta_ref_fai,fasta_ref_dict)
 		bam_files_for_bqsr = sjt
 		} else {
-				 bam_files_for_bqsr = align.out.bam_files
+				 bam_files_for_bqsr = bam_files
 				}
 
     // --------------------------------------------------------------
@@ -661,7 +661,7 @@ workflow {
 	def bam_files_for_quantif
 	if (params.recalibration) {
         def bq = BASE_QUALITY_SCORE_RECALIBRATION(bam_files_for_bqsr,known_snps,known_snps_index,known_indels,known_indels_index,fasta_ref,fasta_ref_fai,fasta_ref_dict)
-		bam_files_for_quantif = bq.out.bam_files3
+		bam_files_for_quantif = bam_files3
 		} else {
         		bam_files_for_quantif = bam_files_for_bqsr
     			} 
@@ -688,5 +688,5 @@ workflow {
     // 10. MULTIQC POSTRIM
     // --------------------------------------------------------------
 
-    MULTIQC_POSTTRIM(align.out.align_out,quant,rs.out.rseqc_clip_files,rs.out.rseqc_files,rs.out.rseqc_jsat_files,trim_reports_ch,fastqc_postpairs_ch,rss,multiqc)
+    MULTIQC_POSTTRIM(align_out,quant,rseqc_clip_files,rseqc_files,rseqc_jsat_files,trim_reports_ch,fastqc_postpairs_ch,rss,multiqc)
 }

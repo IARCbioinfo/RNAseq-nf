@@ -648,10 +648,10 @@ workflow {
     
 	def bam_files_for_bqsr
 	if (params.sjtrim) {
-        def sjt = SPLICE_JUNCT_TRIM(bam_files,fasta_ref,fasta_ref_fai,fasta_ref_dict)
+        def sjt = SPLICE_JUNCT_TRIM(align.bam_files,fasta_ref,fasta_ref_fai,fasta_ref_dict)
 		bam_files_for_bqsr = sjt
 		} else {
-				 bam_files_for_bqsr = bam_files
+				 bam_files_for_bqsr = align.bam_files
 				}
 
     // --------------------------------------------------------------

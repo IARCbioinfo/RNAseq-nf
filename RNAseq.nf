@@ -688,5 +688,5 @@ workflow {
     // 10. MULTIQC POSTRIM
     // --------------------------------------------------------------
 
-    MULTIQC_POSTTRIM(align_out,quant,rseqc_clip_files,rseqc_files,rseqc_jsat_files,trim_reports_ch,fastqc_postpairs_ch,rss,multiqc)
+    MULTIQC_POSTTRIM(align.align_out,quant,rs.rseqc_clip_files,rs.rseqc_files,rs.rseqc_jsat_files,trim_reports_ch,fastqc_postpairs_ch,rss,multiqc)
 }

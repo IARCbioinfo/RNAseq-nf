@@ -419,23 +419,18 @@ if (params.input_file) {
 
         input:
         tuple val(file_tag), val(rg), path(bam), path(bai)
-		// from bam_files
-        file fasta_ref
-		// from fasta_ref
-        file fasta_ref_fai
-		// from fasta_ref_fai
-        file fasta_ref_dict
-		// from fasta_ref_dict
+        path fasta_ref
+        path fasta_ref_fai
+        path fasta_ref_dict
 
         output:
-        tuple val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") , emit: bam_files2
+        tuple val("${file_tag}_split"), val(rg), path("${file_tag}_split.bam"), path("${file_tag}_split.bam.bai"), emit: bam_files2
 
         script:
-        '''
-        file_tag_new=!{file_tag}_split
-        gatk SplitNCigarReads --java-options "-Xmx${params.mem}G" -R ${fasta_ref} -I ${bam} -O ${file_tag_new}.bam
-        mv ${file_tag_new}.bai ${file_tag_new}.bam.bai || true
-        '''
+        """
+  		set -euo pipefail
+        gatk SplitNCigarReads --java-options "-Xmx${task.memory.toGiga()}G" -R ${fasta_ref} -I ${bam} -O ${file_tag}_split.bam
+        """
     }
 
     process BASE_QUALITY_SCORE_RECALIBRATION {
@@ -452,37 +447,29 @@ if (params.input_file) {
                    }
 
         input:
-        tuple val(file_tag), val(rg), path("${file_tag}.bam"), path("${file_tag}.bam.bai")
-		// from bam_files_for_bqsr
-        file known_snps
-		// from known_snps
-        file known_snps_index
-		// from known_snps_index
-        file known_indels
-		// from known_indels
-        file known_indels_index
-		// from known_indels_index
-        file fasta_ref
-		// from fasta_ref
-        file fasta_ref_fai
-		// from fasta_ref_fai
-        file fasta_ref_dict
-		// from fasta_ref_dict
+        tuple val(file_tag), val(rg), path(bam), path(bai)
+    	path known_snps
+    	path known_snps_index
+    	path known_indels
+    	path known_indels_index
+    	path fasta_ref
+    	path fasta_ref_fai
+    	path fasta_ref_dict
 
         output:
-        path "*_recal.table" , emit: recal_table_files
-        path "*plots.pdf" , emit: recal_plots_files
-        tuple val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") , emit: bam_files3
+    	path("${file_tag}_recal.table"), emit: recal_table_files
+    	path("${file_tag}_recalibration_plots.pdf"), emit: recal_plots_files
+    tuple val("${file_tag}_BQSRecalibrated"), val(rg), path("${file_tag}_BQSRecalibrated.bam"), path("${file_tag}_BQSRecalibrated.bam.bai"), emit: bam_files3
 
         script:
-        '''
-        file_tag_new=${file_tag}_BQSRecalibrated
-        gatk BaseRecalibrator --java-options "-Xmx${params.mem}G" -R ${fasta_ref} -I ${file_tag}.bam --known-sites ${known_snps} --known-sites ${known_indels} -O ${file_tag}_recal.table
-        gatk ApplyBQSR --java-options "-Xmx${params.mem}G" -R ${fasta_ref} -I ${file_tag}.bam --bqsr-recal-file ${file_tag}_recal.table -O ${file_tag_new}.bam
-        gatk BaseRecalibrator --java-options "-Xmx${params.mem}G" -R ${fasta_ref} -I ${file_tag_new}.bam --known-sites ${known_snps} --known-sites ${known_indels} -O ${file_tag_new}_recal.table
-        gatk AnalyzeCovariates --java-options "-Xmx${params.mem}G" -before ${file_tag}_recal.table -after ${file_tag_new}_recal.table -plots ${file_tag_new}_recalibration_plots.pdf
-        mv ${file_tag_new}.bai ${file_tag_new}.bam.bai || true
-        '''
+		"""
+    	set -euo pipefail
+    	file_tag_new=${file_tag}_BQSRecalibrated
+		gatk BaseRecalibrator --java-options "-Xmx${task.memory.toGiga()}G" -R ${fasta_ref} -I ${bam} --known-sites ${known_snps} --known-sites ${known_indels} -O ${file_tag}_recal.table
+   		gatk ApplyBQSR --java-options "-Xmx${task.memory.toGiga()}G" -R ${fasta_ref} -I ${bam} --bqsr-recal-file ${file_tag}_recal.table -O ${file_tag_new}.bam
+    	gatk BaseRecalibrator --java-options "-Xmx${task.memory.toGiga()}G" -R ${fasta_ref} -I ${file_tag_new}.bam --known-sites ${known_snps} --known-sites ${known_indels} -O ${file_tag_new}_recal.table
+   		gatk AnalyzeCovariates --java-options "-Xmx${task.memory.toGiga()}G" -before ${file_tag}_recal.table -after ${file_tag_new}_recal.table -plots ${file_tag_new}_recalibration_plots.pdf
+    	"""
     }
 
 	process RSEQC { //(read distribution, clipping, junction saturation)
@@ -697,11 +684,11 @@ workflow {
     // 5. OPTIONAL SPLICE JUNCTION TRIM
     // --------------------------------------------------------------
 
-/*
+
 	def bam_files_for_bqsr
 	if (params.sjtrim) {
         def sjt = SPLICE_JUNCT_TRIM(align.bam_files,fasta_ref,fasta_ref_fai,fasta_ref_dict)
-		bam_files_for_bqsr = sjt
+		bam_files_for_bqsr = sjt.bam_files2
 		} else {
 				 bam_files_for_bqsr = align.bam_files
 				}
@@ -717,7 +704,7 @@ workflow {
 		} else {
         		bam_files_for_quantif = bam_files_for_bqsr
     			} 
-
+/*
     // --------------------------------------------------------------
     // 7. RSEQC
     // --------------------------------------------------------------

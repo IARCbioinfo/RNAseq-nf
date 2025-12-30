@@ -618,7 +618,7 @@ workflow {
     // 2. MULTIQC PRETRIM
     // --------------------------------------------------------------
 
-	MULTIQC_PRETRIM(fastqc1.out.fastqc_pairs,multiqc)
+	MULTIQC_PRETRIM(fastqc1,multiqc)
 
     // --------------------------------------------------------------
     // 3. OPTIONAL ADAPTER TRIMMING
@@ -649,7 +649,7 @@ workflow {
 	def bam_files_for_bqsr
 	if (params.sjtrim) {
         def sjt = SPLICE_JUNCT_TRIM(align.out.bam_files,fasta_ref,fasta_ref_fai,fasta_ref_dict)
-		bam_files_for_bqsr = sjt.out.bam_files2
+		bam_files_for_bqsr = sjt
 		} else {
 				 bam_files_for_bqsr = align.out.bam_files
 				}
@@ -688,5 +688,5 @@ workflow {
     // 10. MULTIQC POSTRIM
     // --------------------------------------------------------------
 
-    MULTIQC_POSTTRIM(align.out.align_out,quant.out.htseq_files,rs.out.rseqc_clip_files,rs.out.rseqc_files,rs.out.rseqc_jsat_files,trim_reports_ch,fastqc_postpairs_ch,rss.out.rseqc_files_split,multiqc)
+    MULTIQC_POSTTRIM(align.out.align_out,quant,rs.out.rseqc_clip_files,rs.out.rseqc_files,rs.out.rseqc_jsat_files,trim_reports_ch,fastqc_postpairs_ch,rss,multiqc)
 }

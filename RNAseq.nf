@@ -267,9 +267,9 @@ if (params.input_file) {
 		memory "${params.mem_QC}GB"
 
 		input:
-		file fastqc1 
+		path fastqc1 
 		// from fastqc_pairs
-		file multiqc_config 
+		path multiqc_config 
 		// from multiqc
 
 		output:
@@ -279,15 +279,22 @@ if (params.input_file) {
 		publishDir "${params.output_folder}/QC", mode: 'copy'
 
 		script:
-		'''
-		if [ "$(basename ${multiqc_config})" == "NO_FILE" ]; then
-			opt=""
-		else
-			opt="--config ${multiqc_config}"
-		fi
-		for f in $(find . -name "*_pretrim_fastqc.zip" -type l); do cp --remove-destination $(readlink $f) $f || true; done
-		multiqc . -n multiqc_pretrim_report.html -m fastqc ${opt} --comment "RNA-seq Pre-trimming QC report"
-		'''
+ """
+    set -euo pipefail
+
+    config_file='${multiqc_config}'
+
+    if [ "\$(basename "\$config_file")" = "NO_FILE" ]; then
+        opt=""
+    else
+        opt="--config \$config_file"
+    fi
+
+ 	while IFS= read -r -d '' f; do
+        	cp --remove-destination "\$(readlink "\$f")" "\$f" || true
+    	done < <(find . -name "*_pretrim_fastqc.zip" -type l -print0)
+  	multiqc . -n multiqc_pretrim_report.html -m fastqc \$opt --comment "RNA-seq Pre-trimming QC report"
+    """
 	}
 
     process ADAPTER_TRIMMING {

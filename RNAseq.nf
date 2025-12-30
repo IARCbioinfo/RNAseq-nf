@@ -356,43 +356,42 @@ if (params.input_file) {
     tuple val(file_tag), path("*SJ.out.junction"), emit: SJ_out
     path "*SJ.out.tab", emit: SJ_out_others
 
-	script:
-	"""
-	set -euo pipefail
+	script: """
+set -euo pipefail
 
-    align_threads=\$(( !{params.cpu} / 2 ))
-    (( align_threads < 1 )) && align_threads=1
+align_threads=$(( !{params.cpu} / 2 ))
+(( align_threads < 1 )) && align_threads=1
 
-    sort_threads=\$(( !{params.cpu} / 2 - 1 ))
-    (( sort_threads < 1 )) && sort_threads=1
+sort_threads=$(( !{params.cpu} / 2 - 1 ))
+(( sort_threads < 1 )) && sort_threads=1
 
-    sort_mem=\$(( !{params.mem} / 4 ))
-    (( sort_mem < 1 )) && sort_mem=1
+sort_mem=$(( !{params.mem} / 4 ))
+(( sort_mem < 1 )) && sort_mem=1
 
-    rgline="ID:!{file_tag} SM:!{file_tag} !{params.RG}"
+rgline="ID:!{file_tag} SM:!{file_tag} !{params.RG}"
 
-    if [ -n "!{pair2}" ] && [ "\$(basename !{pair2})" != "NO_fastq2" ]; then
-        pairs="!{pair1} !{pair2}"
-    else
-        pairs="!{pair1}"
-    fi
+if [ -n "!{pair2}" ] && [ "\$(basename !{pair2})" != "NO_fastq2" ]; then
+    pairs="!{pair1} !{pair2}"
+else
+    pairs="!{pair1}"
+fi
 
-    STAR --outSAMattrRGline "\$rgline" --outSAMmapqUnique !{params.STAR_mapqUnique} \
-         --runThreadN \$align_threads --genomeDir !{star_index} --sjdbGTFfile !{gtf} \
-         --readFilesCommand zcat --readFilesIn \$pairs --outStd SAM \
-    | samblaster --addMateTags \
-    | sambamba view -S -f bam -l 0 /dev/stdin \
-    | sambamba sort -t \$sort_threads -m \$sort_mem\G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
+STAR --outSAMattrRGline "\$rgline" --outSAMmapqUnique !{params.STAR_mapqUnique} \
+     --runThreadN \$align_threads --genomeDir !{star_index} --sjdbGTFfile !{gtf} \
+     --readFilesCommand zcat --readFilesIn \$pairs --outStd SAM \
+| samblaster --addMateTags \
+| sambamba view -S -f bam -l 0 /dev/stdin \
+| sambamba sort -t \$sort_threads -m \$sort_mem\G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
 
-    sambamba index -t \$sort_threads !{file_tag}.bam
+sambamba index -t \$sort_threads !{file_tag}.bam
 
-    mv Chimeric.out.junction STAR.!{file_tag}.Chimeric.SJ.out.junction || true
-    mv SJ.out.tab STAR.!{file_tag}.SJ.out.tab || true
-    mv Log.final.out STAR.!{file_tag}.Log.final.out || true
-    mv Log.out STAR.!{file_tag}.Log.out || true
-    mv Log.progress.out STAR.!{file_tag}.Log.progress.out || true
-    mv Log.std.out STAR.!{file_tag}.Log.std.out || true
-	"""
+mv Chimeric.out.junction STAR.!{file_tag}.Chimeric.SJ.out.junction || true
+mv SJ.out.tab STAR.!{file_tag}.SJ.out.tab || true
+mv Log.final.out STAR.!{file_tag}.Log.final.out || true
+mv Log.out STAR.!{file_tag}.Log.out || true
+mv Log.progress.out STAR.!{file_tag}.Log.progress.out || true
+mv Log.std.out STAR.!{file_tag}.Log.std.out || true
+"""
 }
 
     process SPLICE_JUNCT_TRIM {

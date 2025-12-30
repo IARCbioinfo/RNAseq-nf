@@ -349,9 +349,7 @@ if (params.input_file) {
 		tuple val(file_tag), val(rg), path(pair1), path(pair2) 
 		path star_index
 		// path ref 
-		// from aligner_ref
 		path gtf
-		// from gtf
 
 		output:
 		tuple val(file_tag), val(rg), path("${file_tag}.bam"), path("${file_tag}.bam.bai") , emit: bam_files
@@ -360,16 +358,16 @@ if (params.input_file) {
 		path "*SJ.out.tab" , emit: SJ_out_others
 
 		script:
-    	'''
+    	"""
     	set -euo pipefail
 
-		align_threads=$(( ${task.cpus} / 2 ))
-		(( align_threads < 1 )) && align_threads=1
+		align_threads=$(( ${params.cpu} / 2 ))
+    	(( align_threads < 1 )) && align_threads=1
 
-		sort_threads=$(( ${task.cpus} / 2 - 1 ))
-		(( sort_threads < 1 )) && sort_threads=1
+    	sort_threads=$(( ${params.cpu} / 2 - 1 ))
+    	(( sort_threads < 1 )) && sort_threads=1
 
-		sort_mem=$(( ${task.memory.toMega() / 4 / 1024 / 1024 }))G
+    	sort_mem=$(( ${params.mem} / 4 ))
 
 		input_f1="${pair1}"
 		rgline="ID:${file_tag} SM:${file_tag} ${params.RG}"
@@ -416,7 +414,7 @@ if (params.input_file) {
     	mv Log.out STAR.${file_tag}.Log.out || true
     	mv Log.progress.out STAR.${file_tag}.Log.progress.out || true
     	mv Log.std.out STAR.${file_tag}.Log.std.out || true
-    	'''
+    	"""
 }
 
     process SPLICE_JUNCT_TRIM {

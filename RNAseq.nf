@@ -357,8 +357,8 @@ if (params.input_file) {
     path "*SJ.out.tab", emit: SJ_out_others
 
     script:
-    """
-    set -euo pipefail
+"""
+set -euo pipefail
 
     # calculate threads and memory safely in bash
     align_threads=\$(( !{params.cpu} / 2 ))

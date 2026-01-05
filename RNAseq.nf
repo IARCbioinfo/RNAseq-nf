@@ -440,6 +440,8 @@ if (params.input_file) {
         output:
         tuple val("${file_tag}_split"), val(rg), path("${file_tag}_split.bam"), path("${file_tag}_split.bam.bai"), emit: bam_files2
 
+    	publishDir "${params.output_folder}/SPJTRIM/", mode: 'copy', pattern: "*.bam*"
+
         script:
         """
   		set -euo pipefail
@@ -474,6 +476,10 @@ if (params.input_file) {
     	path("${file_tag}_recal.table"), emit: recal_table_files
     	path("${file_tag}_recalibration_plots.pdf"), emit: recal_plots_files
     tuple val("${file_tag}_BQSRecalibrated"), val(rg), path("${file_tag}_BQSRecalibrated.bam"), path("${file_tag}_BQSRecalibrated.bam.bai"), emit: bam_files3
+
+    	publishDir "${params.output_folder}/RECAL/", mode: 'copy', pattern: "*.bam*"
+    	publishDir "${params.output_folder}/RECAL/", mode: 'copy', pattern: "*_recal.table"
+    	publishDir "${params.output_folder}/RECAL/", mode: 'copy', pattern: "*_recalibration_plots.pdf"
 
         script:
 		"""

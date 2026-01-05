@@ -347,7 +347,7 @@ if (params.input_file) {
 
     input:
     tuple val(file_tag), val(rg), path(pair1), path(pair2)
-    path star_index //ref
+    path ref //ref star_index
     path gtf
 
     output:
@@ -380,8 +380,8 @@ if (params.input_file) {
    """
     set -euo pipefail
 
-    STAR --outSAMattrRGline "!{rgline}" \
-         --outSAMmapqUnique !{params.STAR_mapqUnique} \
+    STAR --outSAMattrRGline "${rgline}" \
+         --outSAMmapqUnique ${params.STAR_mapqUnique} \
          --chimSegmentMin 12 \
          --chimJunctionOverhangMin 12 \
          --chimSegmentReadGapMax 3 \
@@ -398,26 +398,26 @@ if (params.input_file) {
          --chimOutJunctionFormat 1 \
          --twopassMode Basic \
          --outReadsUnmapped None \
-         --runThreadN !{align_threads} \
-         --genomeDir !{ref} \
-         --sjdbGTFfile !{gtf} \
+         --runThreadN ${align_threads} \
+         --genomeDir ${ref} \
+         --sjdbGTFfile ${gtf} \
          --readFilesCommand zcat \
-         --readFilesIn !{pairs} \
+         --readFilesIn ${pairs} \
          --outStd SAM \
     | samblaster --addMateTags \
     | sambamba view -S -f bam -l 0 /dev/stdin \
-    | sambamba sort -t !{sort_threads} -m !{sort_mem}G \
-          --tmpdir=!{file_tag}_tmp \
-          -o !{file_tag}.bam /dev/stdin
+    | sambamba sort -t ${sort_threads} -m ${sort_mem}G \
+        --tmpdir=${file_tag}_tmp \
+        -o ${file_tag}.bam /dev/stdin
 
-    sambamba index -t !{sort_threads} !{file_tag}.bam
+    sambamba index -t ${sort_threads} ${file_tag}.bam
 
-    mv Chimeric.out.junction STAR.!{file_tag}.Chimeric.SJ.out.junction || true
-    mv SJ.out.tab            STAR.!{file_tag}.SJ.out.tab || true
-    mv Log.final.out         STAR.!{file_tag}.Log.final.out || true
-    mv Log.out               STAR.!{file_tag}.Log.out || true
-    mv Log.progress.out      STAR.!{file_tag}.Log.progress.out || true
-    mv Log.std.out           STAR.!{file_tag}.Log.std.out || true
+    mv Chimeric.out.junction STAR.${file_tag}.Chimeric.SJ.out.junction || true
+    mv SJ.out.tab            STAR.${file_tag}.SJ.out.tab || true
+    mv Log.final.out         STAR.${file_tag}.Log.final.out || true
+    mv Log.out               STAR.${file_tag}.Log.out || true
+    mv Log.progress.out      STAR.${file_tag}.Log.progress.out || true
+    mv Log.std.out           STAR.${file_tag}.Log.std.out || true
     """
 }
 

@@ -347,7 +347,7 @@ if (params.input_file) {
 
     input:
     tuple val(file_tag), val(rg), path(pair1), path(pair2)
-    path ref //ref star_index
+    path ref
     path gtf
 
     output:
@@ -399,7 +399,7 @@ if (params.input_file) {
          --twopassMode Basic \
          --outReadsUnmapped None \
          --runThreadN ${align_threads} \
-         --genomeDir ${ref} \
+         --genomeDir . \
          --sjdbGTFfile ${gtf} \
          --readFilesCommand zcat \
          --readFilesIn ${pairs} \

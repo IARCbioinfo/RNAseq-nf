@@ -304,12 +304,12 @@ if (params.input_file) {
 		// from readPairs
 
         output:
-//        tuple val(file_tag), val(rg), path("${file_tag}${rg}*val_1.fq.gz"), path("${file_tag}${rg}*val_2.fq.gz") , emit: readPairs2
 		tuple val(file_tag), val(rg), path("${file_tag}${rg}_val_1.fq.gz"), path("${file_tag}${rg}_val_2.fq.gz"), emit: readPairs2
         path "*_fastqc.zip" , emit: fastqc_postpairs
         path "*trimming_report.txt" , emit: trimming_reports
 
-        publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: '*report.txt,*fastqc.zip'
+        publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: '*trimming_report.txt'
+        publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: '*fastqc.zip'
 
         script:
         """
@@ -355,6 +355,11 @@ if (params.input_file) {
     path "*Log*", emit: align_out
     tuple val(file_tag), path("*SJ.out.junction"), emit: SJ_out
     path "*SJ.out.tab", emit: SJ_out_others
+
+    publishDir "${params.output_folder}/BAM", mode: 'copy', pattern: "*.bam*"
+    publishDir "${params.output_folder}/BAM", mode: 'copy', pattern: "*.out.junction"
+    publishDir "${params.output_folder}/BAM", mode: 'copy', pattern: "*.out.tab"
+    publishDir "${params.output_folder}/QC/alignment", mode: 'copy', pattern: "*Log*"
 
 	script:
    // ---------- Groovy-side calculations ----------

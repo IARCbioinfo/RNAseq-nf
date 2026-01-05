@@ -347,7 +347,7 @@ if (params.input_file) {
 
     input:
     tuple val(file_tag), val(rg), path(pair1), path(pair2)
-    path star_index
+    path star_index //ref
     path gtf
 
     output:
@@ -357,37 +357,68 @@ if (params.input_file) {
     path "*SJ.out.tab", emit: SJ_out_others
 
 	script:
-   def align_threads = Math.max(1, params.cpu.intdiv(2))
+   // ---------- Groovy-side calculations ----------
+    def align_threads = Math.max(1, params.cpu.intdiv(2))
     def sort_threads  = Math.max(1, params.cpu.intdiv(2) - 1)
     def sort_mem      = Math.max(1, params.mem.intdiv(4))
 
+    // RG handling
+    def rg_list = rg instanceof List ? rg : [ rg ]
+    def rgline = rg_list.collect { r ->
+        def id = r ?: file_tag
+        "ID:${id} SM:${file_tag} ${params.RG}"
+    }.join(' , ')
+
+  // FASTQ handling (single- or paired-end)
+    def pairs
+    if( pair2 && pair2.toString() != 'NO_fastq2' ) {
+        pairs = "${pair1} ${pair2}"
+    } else {
+        pairs = "${pair1}"
+    }
+
+   """
+    set -euo pipefail
+
+    STAR --outSAMattrRGline "!{rgline}" \
+         --outSAMmapqUnique !{params.STAR_mapqUnique} \
+         --chimSegmentMin 12 \
+         --chimJunctionOverhangMin 12 \
+         --chimSegmentReadGapMax 3 \
+         --alignSJDBoverhangMin 10 \
+         --alignMatesGapMax 100000 \
+         --alignIntronMax 100000 \
+         --alignSJstitchMismatchNmax 5 -1 5 5 \
+         --outSAMstrandField intronMotif \
+         --chimMultimapScoreRange 10 \
+         --chimMultimapNmax 10 \
+         --chimNonchimScoreDropMin 10 \
+         --peOverlapNbasesMin 12 \
+         --peOverlapMMp 0.1 \
+         --chimOutJunctionFormat 1 \
+         --twopassMode Basic \
+         --outReadsUnmapped None \
+         --runThreadN !{align_threads} \
+         --genomeDir !{ref} \
+         --sjdbGTFfile !{gtf} \
+         --readFilesCommand zcat \
+         --readFilesIn !{pairs} \
+         --outStd SAM \
+    | samblaster --addMateTags \
+    | sambamba view -S -f bam -l 0 /dev/stdin \
+    | sambamba sort -t !{sort_threads} -m !{sort_mem}G \
+          --tmpdir=!{file_tag}_tmp \
+          -o !{file_tag}.bam /dev/stdin
+
+    sambamba index -t !{sort_threads} !{file_tag}.bam
+
+    mv Chimeric.out.junction STAR.!{file_tag}.Chimeric.SJ.out.junction || true
+    mv SJ.out.tab            STAR.!{file_tag}.SJ.out.tab || true
+    mv Log.final.out         STAR.!{file_tag}.Log.final.out || true
+    mv Log.out               STAR.!{file_tag}.Log.out || true
+    mv Log.progress.out      STAR.!{file_tag}.Log.progress.out || true
+    mv Log.std.out           STAR.!{file_tag}.Log.std.out || true
     """
-set -euo pipefail
-
-rgline="ID:!{file_tag} SM:!{file_tag} !{params.RG}"
-
-if [ -n "!{pair2}" ] && [ "\$(basename !{pair2})" != "NO_fastq2" ]; then
-    pairs="!{pair1} !{pair2}"
-else
-    pairs="!{pair1}"
-fi
-
-STAR --outSAMattrRGline "\$rgline" --outSAMmapqUnique !{params.STAR_mapqUnique} \
-     --runThreadN !{align_threads} --genomeDir !{star_index} --sjdbGTFfile !{gtf} \
-     --readFilesCommand zcat --readFilesIn \$pairs --outStd SAM \
-| samblaster --addMateTags \
-| sambamba view -S -f bam -l 0 /dev/stdin \
-| sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
-
-sambamba index -t !{sort_threads} !{file_tag}.bam
-
-mv Chimeric.out.junction STAR.!{file_tag}.Chimeric.SJ.out.junction || true
-mv SJ.out.tab STAR.!{file_tag}.SJ.out.tab || true
-mv Log.final.out STAR.!{file_tag}.Log.final.out || true
-mv Log.out STAR.!{file_tag}.Log.out || true
-mv Log.progress.out STAR.!{file_tag}.Log.progress.out || true
-mv Log.std.out STAR.!{file_tag}.Log.std.out || true
-"""
 }
 
     process SPLICE_JUNCT_TRIM {

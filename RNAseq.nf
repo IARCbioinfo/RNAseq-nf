@@ -399,7 +399,7 @@ if (params.input_file) {
          --twopassMode Basic \
          --outReadsUnmapped None \
          --runThreadN ${align_threads} \
-         --genomeDir . \
+         --genomeDir ${params.ref_folder} \
          --sjdbGTFfile ${gtf} \
          --readFilesCommand zcat \
          --readFilesIn ${pairs} \

@@ -443,7 +443,7 @@ if (params.input_file) {
     	publishDir "${params.output_folder}/SPJTRIM/", mode: 'copy', pattern: "*.bam*"
 
         script:
-		file_tag_new = file_tag+'_split'
+		def file_tag_new = file_tag+'_split'
         """
   		set -euo pipefail
         gatk SplitNCigarReads --java-options "-Xmx${task.memory.toGiga()}G" -R ${fasta_ref} -I ${bam} -O ${file_tag}_split.bam
@@ -477,13 +477,14 @@ if (params.input_file) {
         output:
     	path("${file_tag}_recal.table"), emit: recal_table_files
     	path("${file_tag}_recalibration_plots.pdf"), emit: recal_plots_files
-    tuple val("${file_tag}_BQSRecalibrated"), val(rg), path("${file_tag}_BQSRecalibrated.bam"), path("${file_tag}_BQSRecalibrated.bam.bai"), emit: bam_files3
+    	tuple val("${file_tag}_BQSRecalibrated"), val(rg), path("${file_tag}_BQSRecalibrated.bam"), path("${file_tag}_BQSRecalibrated.bam.bai"), emit: bam_files3
 
     	publishDir "${params.output_folder}/RECAL/", mode: 'copy', pattern: "*.bam*"
     	publishDir "${params.output_folder}/RECAL/", mode: 'copy', pattern: "*_recal.table"
     	publishDir "${params.output_folder}/RECAL/", mode: 'copy', pattern: "*_recalibration_plots.pdf"
 
         script:
+		def file_tag_new=file_tag+'_BQSRecalibrated'
 		"""
     	set -euo pipefail
     	file_tag_new=${file_tag}_BQSRecalibrated
@@ -491,6 +492,7 @@ if (params.input_file) {
    		gatk ApplyBQSR --java-options "-Xmx${task.memory.toGiga()}G" -R ${fasta_ref} -I ${bam} --bqsr-recal-file ${file_tag}_recal.table -O ${file_tag_new}.bam
     	gatk BaseRecalibrator --java-options "-Xmx${task.memory.toGiga()}G" -R ${fasta_ref} -I ${file_tag_new}.bam --known-sites ${known_snps} --known-sites ${known_indels} -O ${file_tag_new}_recal.table
    		gatk AnalyzeCovariates --java-options "-Xmx${task.memory.toGiga()}G" -before ${file_tag}_recal.table -after ${file_tag_new}_recal.table -plots ${file_tag_new}_recalibration_plots.pdf
+		mv ${file_tag_new}.bai ${file_tag_new}.bam.bai
     	"""
     }
 

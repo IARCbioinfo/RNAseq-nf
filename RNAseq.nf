@@ -443,9 +443,11 @@ if (params.input_file) {
     	publishDir "${params.output_folder}/SPJTRIM/", mode: 'copy', pattern: "*.bam*"
 
         script:
+		file_tag_new = file_tag+'_split'
         """
   		set -euo pipefail
         gatk SplitNCigarReads --java-options "-Xmx${task.memory.toGiga()}G" -R ${fasta_ref} -I ${bam} -O ${file_tag}_split.bam
+		mv ${file_tag_new}.bai ${file_tag_new}.bam.bai
         """
     }
 

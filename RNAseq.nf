@@ -737,13 +737,13 @@ if (params.help) {
     // --------------------------------------------------------------
 
 
-//	def bam_files_for_bqsr
-//	if (params.sjtrim) {
-//        def sjt = SPLICE_JUNCT_TRIM(align.bam_files,fasta_ref,fasta_ref_fai,fasta_ref_dict)
-//		bam_files_for_bqsr = sjt.bam_files2
-//		} else {
-//				 bam_files_for_bqsr = align.bam_files
-//				}
+	def bam_files_for_bqsr
+	if (params.sjtrim) {
+        def sjt = SPLICE_JUNCT_TRIM(align.bam_files,fasta_ref,fasta_ref_fai,fasta_ref_dict)
+		bam_files_for_bqsr = sjt.bam_files2
+		} else {
+				 bam_files_for_bqsr = align.bam_files
+				}
 
     // --------------------------------------------------------------
     // 6. OPTIONAL BQSR
@@ -756,11 +756,11 @@ if (params.help) {
 //		} else {
 //        		bam_files_for_quantif = bam_files_for_bqsr
 //    			} 
-/*
+
     // --------------------------------------------------------------
     // 7. RSEQC
     // --------------------------------------------------------------
-
+/*
     def rs = RSEQC(bam_files_for_quantif,bed)
 
     // --------------------------------------------------------------

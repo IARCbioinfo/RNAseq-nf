@@ -123,8 +123,7 @@ if (params.input_file) {
 			mode = 'bam'
             println "BAM files found, proceed with realignment"
         } else {
-            println "ERROR: input folder contains no fastq nor BAM files"
-            System.exit(0)
+            error "ERROR: input folder contains no fastq nor BAM files"
         }
     }
 }
@@ -449,6 +448,7 @@ if (params.input_file) {
 
 		script:
 		'''
+		set -euo pipefail
 		read_distribution.py -i ${bam} -r ${bed} > ${file_tag}_readdist.txt
 		clipping_profile.py  -i ${bam} -s "PE" -o ${file_tag}_clipping
 		junction_saturation.py -i ${bam} -r ${bed} -o ${file_tag}_jun_saturation
@@ -473,8 +473,9 @@ if (params.input_file) {
 
 		script:
 		'''
+		set -euo pipefail
 		basename=$(basename ${bam})
-		samtools split !{bam} -f "%*_%!.%."
+		samtools split ${bam} -f "%*_%!.%."
 		for f in ${basename}_*.bam; do
 			read_distribution.py -i $f -r ${bed} > ${f%.bam}_readdist.txt
 		done
@@ -499,6 +500,7 @@ if (params.input_file) {
 
 		script:
 		'''
+		set -euo pipefail
 		buffer=""
 		if [ -n "${params.htseq_maxreads}" ]; then
 			buffer="--max-reads-in-buffer ${params.htseq_maxreads}"
@@ -710,7 +712,7 @@ if (params.help) {
 	def fastqc_postpairs_ch = Channel.empty()
 	if (params.cutadapt) {
  	def trim = ADAPTER_TRIMMING(readPairs)
-	readPairs_for_align = readPairs2
+	readPairs_for_align = trim.readPairs2
 	trim_reports_ch = trim.trimming_reports
 	fastqc_postpairs_ch = trim.fastqc_postpairs
 	} else {

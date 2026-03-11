@@ -697,14 +697,7 @@ if (params.help) {
 	def fastqc1 = FASTQC_PRETRIM(readPairs)
 
     // --------------------------------------------------------------
-    // 2. MULTIQC PRETRIM
-    // --------------------------------------------------------------
-
-	fastqc_pretrim_all = fastqc1.collect()
-	MULTIQC_PRETRIM(fastqc_pretrim_all,multiqc)
-
-    // --------------------------------------------------------------
-    // 3. OPTIONAL ADAPTER TRIMMING
+    // 2. OPTIONAL ADAPTER TRIMMING
     // --------------------------------------------------------------
 
 	def readPairs_for_align
@@ -718,6 +711,20 @@ if (params.help) {
 	} else {
 			readPairs_for_align = readPairs
     		}
+
+
+    // --------------------------------------------------------------
+    // 3. MULTIQC PRETRIM - TO CHECK
+    // --------------------------------------------------------------
+
+	if (params.cutadapt) {
+		fastqc_pretrim_all = fastqc_postpairs_ch.collect()
+		}
+	else {
+		fastqc_pretrim_all = fastqc1.collect()
+		}
+	MULTIQC_PRETRIM(fastqc_pretrim_all,multiqc)
+
 
     // --------------------------------------------------------------
     // 4. ALIGNMENT

@@ -738,6 +738,7 @@ if (params.help) {
 
 
 	def bam_files_for_bqsr
+	def bam_files_for_quantif
 	if (params.sjtrim) {
         def sjt = SPLICE_JUNCT_TRIM(align.bam_files,fasta_ref,fasta_ref_fai,fasta_ref_dict)
 		bam_files_for_bqsr = sjt.bam_files2
@@ -751,7 +752,6 @@ if (params.help) {
     // 6. OPTIONAL BQSR
     // --------------------------------------------------------------
 
-	def bam_files_for_quantif
 	if (params.recalibration) {
         def bq = BASE_QUALITY_SCORE_RECALIBRATION(bam_files_for_bqsr,known_snps,known_snps_index,known_indels,known_indels_index,fasta_ref,fasta_ref_fai,fasta_ref_dict)
 		bam_files_for_quantif = bq.bam_files3

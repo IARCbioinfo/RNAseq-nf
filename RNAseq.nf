@@ -423,7 +423,7 @@ if (params.input_file) {
 		gatk BaseRecalibrator --java-options "-Xmx${task.memory.toGiga()}G" -R ${fasta_ref} -I ${bam} --known-sites ${known_snps} --known-sites ${known_indels} -O ${file_tag}_recal.table
    		gatk ApplyBQSR --java-options "-Xmx${task.memory.toGiga()}G" -R ${fasta_ref} -I ${bam} --bqsr-recal-file ${file_tag}_recal.table -O ${file_tag_new}.bam
     	gatk BaseRecalibrator --java-options "-Xmx${task.memory.toGiga()}G" -R ${fasta_ref} -I ${file_tag_new}.bam --known-sites ${known_snps} --known-sites ${known_indels} -O ${file_tag_new}_recal.table
-   		gatk AnalyzeCovariates --java-options "-Xmx${task.memory.toGiga()}G" -before ${file_tag}_recal.table -after ${file_tag_new}_recal.table -plots ${file_tag_new}_recalibration_plots.pdf
+   		gatk AnalyzeCovariates --java-options "-Xmx${task.memory.toGiga()}G" -before ${file_tag}_recal.table -after ${file_tag_new}_recal.table -plots ${file_tag}_recalibration_plots.pdf
 		mv ${file_tag_new}.bai ${file_tag_new}.bam.bai
     	"""
     }

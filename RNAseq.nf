@@ -474,10 +474,10 @@ if (params.input_file) {
 		script:
 		"""
 		set -euo pipefail
-		basename=$(basename ${bam})
+		basename=\$(basename ${bam})
 		samtools split ${bam} -f "%*_%!.%."
-		for f in ${basename}_*.bam; do
-			read_distribution.py -i $f -r ${bed} > ${f%.bam}_readdist.txt
+		for f in \${basename}_*.bam; do
+    		read_distribution.py -i \$f -r ${bed} > \${f%.bam}_readdist.txt
 		done
 		"""
 }

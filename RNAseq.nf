@@ -472,14 +472,14 @@ if (params.input_file) {
 		publishDir "${params.output_folder}/QC/bam", mode: 'copy'
 
 		script:
-		'''
+		"""
 		set -euo pipefail
 		basename=$(basename ${bam})
 		samtools split ${bam} -f "%*_%!.%."
 		for f in ${basename}_*.bam; do
 			read_distribution.py -i $f -r ${bed} > ${f%.bam}_readdist.txt
 		done
-		'''
+		"""
 }
 
 	process QUANTIFICATION {

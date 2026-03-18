@@ -447,12 +447,12 @@ if (params.input_file) {
 		publishDir "${params.output_folder}/QC/bam", mode: 'copy'
 
 		script:
-		'''
+		"""
 		set -euo pipefail
 		read_distribution.py -i ${bam} -r ${bed} > ${file_tag}_readdist.txt
 		clipping_profile.py  -i ${bam} -s "PE" -o ${file_tag}_clipping
 		junction_saturation.py -i ${bam} -r ${bed} -o ${file_tag}_jun_saturation
-		'''
+		"""
 }
 
 	process RSEQCSPLIT {
@@ -499,7 +499,7 @@ if (params.input_file) {
 		publishDir "${params.output_folder}/counts", mode: 'copy'
 
 		script:
-		'''
+		"""
 		set -euo pipefail
 		buffer=""
 		if [ -n "${params.htseq_maxreads}" ]; then
@@ -512,7 +512,7 @@ if (params.input_file) {
 		else
 			htseq-count -n ${params.cpu} -r pos -s ${params.stranded} -f bam ${file_tag}.bam ${gtf} ${buffer} --additional-attr=gene_name > ${file_tag}_count.txt
 		fi
-		'''
+		"""
 }
 
 	process MULTIQC_POSTTRIM {
@@ -547,7 +547,7 @@ if (params.input_file) {
 		publishDir "${params.output_folder}/QC", mode: 'copy'
 
 		script:
-		'''
+		"""
 		if [ "$(basename ${multiqc_config})" == "NO_FILE" ]; then
 			opt=""
 		else
@@ -557,7 +557,7 @@ if (params.input_file) {
 			for f in $(find . -name "*_fastqc.zip" -type l); do cp --remove-destination $(readlink $f) $f || true; done
 		fi
 		multiqc . -n multiqc_posttrim_report.html -m fastqc -m cutadapt -m star -m rseqc -m htseq ${opt} --comment "RNA-seq Post-trimming QC report"
-		'''
+		"""
 }
 
 // ========================================================================================================================================================

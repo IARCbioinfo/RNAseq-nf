@@ -548,13 +548,16 @@ if (params.input_file) {
 
 		script:
 		"""
-		if [ "$(basename ${multiqc_config})" == "NO_FILE" ]; then
+		set -euo pipefail
+		if [ "\$(basename ${multiqc_config})" == "NO_FILE" ]; then
 			opt=""
 		else
 			opt="--config ${multiqc_config}"
 		fi
 		if compgen -G "*fastq.zip" > /dev/null; then
-			for f in $(find . -name "*_fastqc.zip" -type l); do cp --remove-destination $(readlink $f) $f || true; done
+			for f in \$(find . -name "*_fastqc.zip" -type l); do 
+				cp --remove-destination \$(readlink \$f) \$f || true; 
+			done
 		fi
 		multiqc . -n multiqc_posttrim_report.html -m fastqc -m cutadapt -m star -m rseqc -m htseq ${opt} --comment "RNA-seq Post-trimming QC report"
 		"""

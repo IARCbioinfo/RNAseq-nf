@@ -508,9 +508,9 @@ if (params.input_file) {
 		if [ -n "${params.sjtrim}" ] || [ -n "${params.recalibration}" ]; then
 			mv ${file_tag}.bam ${file_tag}_coordinate_sorted.bam
 			sambamba sort -n -t ${task.cpus} -m ${params.mem}G --tmpdir=${file_tag}_tmp -o ${file_tag}.bam ${file_tag}_coordinate_sorted.bam
-			htseq-count -n ${params.cpu} -r name -s ${params.stranded} -f bam ${file_tag}.bam ${gtf} ${buffer} --additional-attr=gene_name > ${file_tag}_count.txt
+			htseq-count -n ${params.cpu} -r name -s ${params.stranded} -f bam ${file_tag}.bam ${gtf} \$buffer --additional-attr=gene_name > ${file_tag}_count.txt
 		else
-			htseq-count -n ${params.cpu} -r pos -s ${params.stranded} -f bam ${file_tag}.bam ${gtf} ${buffer} --additional-attr=gene_name > ${file_tag}_count.txt
+			htseq-count -n ${params.cpu} -r pos -s ${params.stranded} -f bam ${file_tag}.bam ${gtf} \$buffer --additional-attr=gene_name > ${file_tag}_count.txt
 		fi
 		"""
 }

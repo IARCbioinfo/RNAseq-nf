@@ -539,24 +539,15 @@ htseq-count \
 		memory "${params.mem_QC}GB"
 
 		input:
-		file STAR
-		// from align_out
-		file htseq
-		// from htseq_files
-		file rseqc_clip
-		// from rseqc_clip_files
-		file rseqc
-		// from rseqc_files
-		file rseqc_jsat
-		// from rseqc_jsat_files
-		file trim
-		// from trimming_reports.ifEmpty([])
-		file fastqcpost
-		// from fastqc_postpairs.ifEmpty([])
-		file rseqc_split
-		// from rseqc_files_split.ifEmpty([])
-		file multiqc_config
-		// from multiqc
+		path STAR // log from align_out
+		path htseq // count from quantif - htseq_files
+		path rseqc_clip // clipping from RSEQC - rseqc_clip_files
+		path rseqc // readdist from RSEQC - from rseqc_files
+		path rseqc_jsat // jun_saturation RSEQC - from rseqc_jsat_files
+		path trim // from adapter Trimming - trimming_report.txt
+		path fastqcpost // from adapter Trimming - fastqc.zip
+		path rseqc_split // from RSEQCSPLIT - readdist.txt
+		path multiqc_config // from multiqc
 
 		output:
 		path "multiqc_posttrim_report.html" , emit: multiqc_post
@@ -567,11 +558,15 @@ htseq-count \
 		script:
 		"""
 		set -euo pipefail
-		if [ "\$(basename ${multiqc_config})" == "NO_FILE" ]; then
-			opt=""
-		else
-			opt="--config ${multiqc_config}"
-		fi
+		
+		config_file='${multiqc_config}'
+
+    	if [ "\$(basename "\$config_file")" = "NO_FILE" ]; then
+        	opt=""
+    	else
+        	opt="--config \$config_file"
+    	fi
+
 		if compgen -G "*fastq.zip" > /dev/null; then
 			for f in \$(find . -name "*_fastqc.zip" -type l); do 
 				cp --remove-destination \$(readlink \$f) \$f || true; 

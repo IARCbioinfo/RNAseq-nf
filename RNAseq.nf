@@ -792,7 +792,7 @@ if (params.help) {
     // --------------------------------------------------------------
   
 	def quant = QUANTIFICATION(bam_files_for_quantif,gtf)
-/*
+
     // --------------------------------------------------------------
     // 10. MULTIQC POSTRIM
     // --------------------------------------------------------------
@@ -807,5 +807,4 @@ if (params.help) {
 	rseqc_split_all      = rss.rseqc_files_split.collect()
 
 	MULTIQC_POSTTRIM(align_out_all,htseq_all,rseqc_clip_all,rseqc_all,rseqc_jsat_all,trim_reports_all,fastqc_post_all,rseqc_split_all,multiqc)
-*/
 }

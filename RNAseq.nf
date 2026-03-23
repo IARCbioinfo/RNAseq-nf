@@ -499,20 +499,38 @@ if (params.input_file) {
 		publishDir "${params.output_folder}/counts", mode: 'copy'
 
 		script:
-		"""
-		set -euo pipefail
-		buffer=""
-		if [ -n "${params.htseq_maxreads}" ]; then
-			buffer="--max-reads-in-buffer ${params.htseq_maxreads}"
-		fi
-		if [ -n "${params.sjtrim}" ] || [ -n "${params.recalibration}" ]; then
-			mv ${file_tag}.bam ${file_tag}_coordinate_sorted.bam
-			sambamba sort -n -t ${task.cpus} -m ${params.mem}G --tmpdir=${file_tag}_tmp -o ${file_tag}.bam ${file_tag}_coordinate_sorted.bam
-			htseq-count -n ${params.cpu} -r name -s ${params.stranded} -f bam ${file_tag}.bam ${gtf} \$buffer --additional-attr=gene_name > ${file_tag}_count.txt
-		else
-			htseq-count -n ${params.cpu} -r pos -s ${params.stranded} -f bam ${file_tag}.bam ${gtf} \$buffer --additional-attr=gene_name > ${file_tag}_count.txt
-		fi
-		"""
+
+def buffer = (params.htseq_maxreads && params.htseq_maxreads != 'null') \
+    ? "--max-reads-in-buffer ${params.htseq_maxreads}" \
+    : ""
+
+def sort_mode = (params.sjtrim || params.recalibration) ? "name" : "pos"
+
+"""
+set -euo pipefail
+
+if [ "${sort_mode}" == "name" ]; then
+    mv ${file_tag}.bam ${file_tag}_coordinate_sorted.bam
+
+    sambamba sort -n \
+        -t ${task.cpus} \
+        -m ${params.mem}G \
+        --tmpdir=${file_tag}_tmp \
+        -o ${file_tag}.bam \
+        ${file_tag}_coordinate_sorted.bam
+fi
+
+htseq-count \
+    -n ${params.cpu} \
+    -r ${sort_mode} \
+    -s ${params.stranded} \
+    -f bam \
+    ${file_tag}.bam \
+    ${gtf} \
+    ${buffer} \
+    --additional-attr=gene_name \
+    > ${file_tag}_count.txt
+"""
 }
 
 	process MULTIQC_POSTTRIM {

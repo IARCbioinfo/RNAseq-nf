@@ -572,7 +572,7 @@ htseq-count \
 				cp --remove-destination \$(readlink \$f) \$f || true; 
 			done
 		fi
-		multiqc . -n multiqc_posttrim_report.html -m fastqc -m cutadapt -m star -m rseqc -m htseq ${opt} --comment "RNA-seq Post-trimming QC report"
+		multiqc . -n multiqc_posttrim_report.html -m fastqc -m cutadapt -m star -m rseqc -m htseq \$opt --comment "RNA-seq Post-trimming QC report"
 		"""
 }
 

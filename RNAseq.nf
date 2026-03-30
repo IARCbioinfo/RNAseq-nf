@@ -236,7 +236,7 @@ if (params.input_file) {
 		// from readPairs
 
         output:
-		tuple val(file_tag), val(rg), path("${file_tag}${rg}_val_1.fq.gz"), path("${file_tag}${rg}_val_2.fq.gz"), emit: readPairs2
+		tuple val(file_tag), val(rg), path("${file_tag}${rg}*val_1.fq.gz"), path("${file_tag}${rg}*val_2.fq.gz"), emit: readPairs2
         path "*_fastqc.zip" , emit: fastqc_postpairs
         path "*trimming_report.txt" , emit: trimming_reports
 
@@ -388,13 +388,13 @@ if (params.input_file) {
         cpus params.cpu_gatk
         memory "${params.mem}G"
 
-        publishDir "${params.output_folder}/BAM/", mode: 'copy', pattern: "*bam*"
-        publishDir "${params.output_folder}/QC/BAM/BQSR/", mode: 'copy',
-                   saveAs: { filename ->
-                       if (filename.indexOf("table") > 0) "${filename}"
-                       else if (filename.indexOf("plots") > 0) "${filename}"
-                       else null
-                   }
+//        publishDir "${params.output_folder}/BAM/", mode: 'copy', pattern: "*bam*"
+//        publishDir "${params.output_folder}/QC/BAM/BQSR/", mode: 'copy',
+//                   saveAs: { filename ->
+//                       if (filename.indexOf("table") > 0) "${filename}"
+//                       else if (filename.indexOf("plots") > 0) "${filename}"
+//                       else null
+//                   }
 
         input:
         tuple val(file_tag), val(rg), path(bam), path(bai)

@@ -99,8 +99,8 @@ sample2	RG2	sample2_RG2_1.fq.gz	sample2_RG2_2.fq.gz
 |--mem         | 50 | Size of memory used for mapping (in GB) |
 |--mem_QC     | 2 | Size of memory used for QC and cutadapt (in GB) |
 |--fastq_ext    | fq.gz | Extension of fastq files |
-|--suffix1      | \_1 | Suffix of fastq files 1 (first element of read files pair) |
-|--suffix2      | \_2 | Suffix of fastq files 2(second element of read files pair) |
+|--suffix1      | \_1 | Suffix of fastq files 1 (first element of read files pair - should include the 1st underscore) |
+|--suffix2      | \_2 | Suffix of fastq files 2(second element of read files pair - should include the 1st underscore) |
 |--output_folder   | . | Output folder |
 |--ref |    ref.fa | Reference fasta file (with index) for GATK |
 |--snp_vcf |  dbsnp.vcf | Path to SNP VCF from GATK bundle |

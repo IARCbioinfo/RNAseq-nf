@@ -183,11 +183,11 @@ if (params.input_file) {
     	if [ "\$(basename "\$pair2_file")" != "NO_fastq2" ]; then
         	basename2=\$(basename "\$pair2_file" ".\$ext")
         	fastqc -t ${task.cpus} "\$pair1_file" "\$pair2_file"
-       	 	mv "\${basename1}_fastqc.zip" "\${file_tag}\${suffix1}\${rg}_pretrim_fastqc.zip"
-        	mv "\${basename2}_fastqc.zip" "\${file_tag}\${suffix2}\${rg}_pretrim_fastqc.zip"
+       	 	mv "\${basename1}_fastqc.zip" "\${file_tag}\${suffix1}_\${rg}_pretrim_fastqc.zip"
+        	mv "\${basename2}_fastqc.zip" "\${file_tag}\${suffix2}_\${rg}_pretrim_fastqc.zip"
     	else
         	fastqc -t ${task.cpus} "\$pair1_file"
-        	mv "\${basename1}_fastqc.zip" "\${file_tag}\${suffix1}\${rg}_pretrim_fastqc.zip"
+        	mv "\${basename1}_fastqc.zip" "\${file_tag}\${suffix1}_\${rg}_pretrim_fastqc.zip"
     	fi
     	"""
 }
@@ -372,7 +372,7 @@ if (params.input_file) {
         output:
         tuple val("${file_tag}_split"), val(rg), path("${file_tag}_split.bam"), path("${file_tag}_split.bam.bai"), emit: bam_files2
 
-    	publishDir "${params.output_folder}/SPJTRIM/", mode: 'copy', pattern: "*.bam*"
+    	publishDir "${params.output_folder}/SPJTRIM/", mode: 'copy', pattern: ".bam"
 
         script:
 		def file_tag_new = file_tag+'_split'

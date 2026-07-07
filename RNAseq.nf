@@ -733,12 +733,12 @@ if (params.help) {
     // 3. MULTIQC PRETRIM - TO CHECK
     // --------------------------------------------------------------
 
-	if (params.cutadapt) {
-		fastqc_pretrim_all = fastqc_postpairs_ch.collect()
-		}
-	else {
+//	if (params.cutadapt) {
+//		fastqc_pretrim_all = fastqc_postpairs_ch.collect()
+//		}
+//	else {
 		fastqc_pretrim_all = fastqc1.collect()
-		}
+//		}
 	MULTIQC_PRETRIM(fastqc_pretrim_all,multiqc)
 
 

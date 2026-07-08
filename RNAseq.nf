@@ -299,19 +299,29 @@ if (params.input_file) {
     def sort_threads  = Math.max(1, params.cpu.intdiv(2) - 1)
     def sort_mem      = Math.max(1, params.mem.intdiv(4))
 
-    // RG handling
+    // RG handling - normalisation of lists after groupTuple()
     def rg_list = rg instanceof List ? rg : [ rg ]
+
+    def pair1_list = pair1 instanceof List ? pair1 : [pair1]
+    def pair2_list = pair2 instanceof List ? pair2 : [pair2]
+	// Construction of RG line for STAR
     def rgline = rg_list.collect { r ->
         def id = r ?: file_tag
         "ID:${id}\tSM:${file_tag}\t${params.RG}"
     }.join(' , ')
 
+	// Construction of STAR input files
+    def input_f1 = pair1_list.collect { it.toString() }.join(',')
+
   // FASTQ handling (single- or paired-end)
-    def pairs
-    if( pair2 && pair2.toString() != 'NO_fastq2' ) {
-        pairs = "${pair1} ${pair2}"
-    } else {
-        pairs = "${pair1}"
+  
+   def pairs
+    if (pair2_list && pair2_list[0].getName() != 'NO_fastq2') {
+        def input_f2 = pair2_list.collect { it.toString() }.join(',')
+        pairs = "${input_f1} ${input_f2}"
+    }
+    else {
+        pairs = input_f1
     }
 
    """
@@ -745,8 +755,10 @@ if (params.help) {
     // --------------------------------------------------------------
     // 4. ALIGNMENT
     // --------------------------------------------------------------
-     
-	def align = ALIGNMENT(readPairs_for_align,aligner_ref,gtf)
+
+	//To manage grouping by RG and get only 1 bam per sample:
+	readPairs_align = readPairs_for_align.groupTuple(by: 0)
+	def align = ALIGNMENT(readPairs_align,aligner_ref,gtf)
 
     // --------------------------------------------------------------
     // 5. OPTIONAL SPLICE JUNCTION TRIM

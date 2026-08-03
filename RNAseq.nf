@@ -346,6 +346,7 @@ if (params.input_file) {
          --twopassMode Basic \
          --outReadsUnmapped None \
          --runThreadN ${align_threads} \
+		 --limitOutSJcollapsed 10000000 \
          --genomeDir ${params.ref_folder} \
          --sjdbGTFfile ${gtf} \
          --readFilesCommand zcat \

@@ -347,6 +347,7 @@ if (params.input_file) {
          --outReadsUnmapped None \
          --runThreadN ${align_threads} \
 		 --limitOutSJcollapsed 10000000 \
+		 --limitIObufferSize=270000000
          --genomeDir ${params.ref_folder} \
          --sjdbGTFfile ${gtf} \
          --readFilesCommand zcat \

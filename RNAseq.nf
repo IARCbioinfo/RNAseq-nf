@@ -348,6 +348,7 @@ if (params.input_file) {
          --runThreadN ${align_threads} \
 		 --limitOutSJcollapsed 10000000 \
 		 --limitIObufferSize 2700000000 \
+		 --limitSjdbInsertNsj 3000000 \
          --genomeDir ${params.ref_folder} \
          --sjdbGTFfile ${gtf} \
          --readFilesCommand zcat \

@@ -1,62 +1,612 @@
 #!/usr/bin/env nextflow
-// Copyright (C) 2017 IARC/WHO
 
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Copyright (C) 2026 IARC/WHO
+// This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+// This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+// See the GNU General Public License for more details <http://www.gnu.org/licenses/>.
 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
+nextflow.enable.dsl=2
 
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// ---------------------------
+// PARAMETERS
+// ---------------------------
 
-params.input_folder = null
-params.input_file   = null
-params.ref_folder   = null
-params.gtf          = null
-params.bed          = null
+params.input_folder      = null
+params.input_file        = null
+params.ref_folder        = null
+params.gtf               = null
+params.bed               = null
+params.cpu               = 4
+params.cpu_gatk          = 1
+params.mem               = 50
+params.mem_QC            = 2
+params.fastq_ext         = "fq.gz"
+params.suffix1           = "_1"
+params.suffix2           = "_2"
+params.output_folder     = "."
+params.ref               = "ref.fa"
+params.snp_vcf           = "dbsnp.vcf"
+params.indel_vcf         = "Mills_1000G_indels.vcf"
+params.RG                = "PL:ILLUMINA"
+params.STAR_mapqUnique   = 255
+params.stranded          = "no"
+params.hisat2_idx        = "genome_tran"
+params.cpu_trim          = 15
+params.htseq_maxreads    = null
+params.multiqc_config    = 'NO_FILE'
+params.sjtrim            = null
+params.recalibration     = null
+params.cutadapt          = null
+params.hisat2            = null
+params.help              = null
 
-params.cpu          = 4
-params.cpu_gatk     = 1
-params.mem          = 50
-params.mem_QC       = 2
-params.fastq_ext    = "fq.gz"
-params.suffix1      = "_1"
-params.suffix2      = "_2"
-params.output_folder= "."
-params.ref          = "ref.fa"
-params.snp_vcf      = "dbsnp.vcf"
-params.indel_vcf    = "Mills_1000G_indels.vcf"
-params.RG           = "PL:ILLUMINA"
-params.STAR_mapqUnique = 255
-params.stranded     = "no"
-params.hisat2_idx   = "genome_tran"
-params.cpu_trim     = 15
-params.htseq_maxreads = null //default value of htseq-count is 30000000
-params.multiqc_config = 'NO_FILE'
-params.sjtrim       = null
-params.recalibration= null
+//Header for the IARC tools - logo generated using the following page : http://patorjk.com/software/taag  (ANSI logo generator)
+def IARC_Header (){
+     return  """
+#################################################################################
+# ██╗ █████╗ ██████╗  ██████╗██████╗ ██╗ ██████╗ ██╗███╗   ██╗███████╗ ██████╗  #
+# ██║██╔══██╗██╔══██╗██╔════╝██╔══██╗██║██╔═══██╗██║████╗  ██║██╔════╝██╔═══██╗ #
+# ██║███████║██████╔╝██║     ██████╔╝██║██║   ██║██║██╔██╗ ██║█████╗  ██║   ██║ #
+# ██║██╔══██║██╔══██╗██║     ██╔══██╗██║██║   ██║██║██║╚██╗██║██╔══╝  ██║   ██║ #
+# ██║██║  ██║██║  ██║╚██████╗██████╔╝██║╚██████╔╝██║██║ ╚████║██║     ╚██████╔╝ #
+# ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═════╝ ╚═╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝╚═╝      ╚═════╝  #
+# Nextflow pipelines for cancer genomics.########################################
+"""
+}
 
-params.cutadapt     = null
-params.hisat2       = null
-params.help         = null
+// ---------------------------
+// FILES DEFINITION
+// ---------------------------
+
+fasta_ref = file(params.ref)
+fasta_ref_fai = file("${params.ref}.fai")
+if ((params.sjtrim != null) || (params.recalibration != null)) {
+    def fasta_ref_dictn = params.ref[0..<params.ref.lastIndexOf('.')]
+    fasta_ref_dict = file("${fasta_ref_dictn}.dict")
+}
+
+bed = file(params.bed)
+gtf = file(params.gtf)
+
+multiqc = params.multiqc_config == 'NO_FILE'
+    ? Channel.empty()
+    : file(params.multiqc_config)
+
+def aligner_ref
+if (params.hisat2) {
+    def pfx = "${params.ref_folder}/${params.hisat2_idx}"
+    aligner_ref = Channel.fromPath("${pfx}.1.ht2")
+            .concat(Channel.fromPath("${pfx}.2.ht2"),
+                    Channel.fromPath("${pfx}.3.ht2"),
+                    Channel.fromPath("${pfx}.4.ht2"),
+                    Channel.fromPath("${pfx}.5.ht2"),
+                    Channel.fromPath("${pfx}.6.ht2"),
+                    Channel.fromPath("${pfx}.7.ht2"),
+                    Channel.fromPath("${pfx}.8.ht2"))
+} else { // STAR
+    aligner_ref = Channel.fromPath("${params.ref_folder}/chrStart.txt")
+            .concat(Channel.fromPath("${params.ref_folder}/chrNameLength.txt"),
+                    Channel.fromPath("${params.ref_folder}/chrName.txt"),
+                    Channel.fromPath("${params.ref_folder}/chrLength.txt"),
+                    Channel.fromPath("${params.ref_folder}/exonGeTrInfo.tab"),
+                    Channel.fromPath("${params.ref_folder}/exonInfo.tab"),
+                    Channel.fromPath("${params.ref_folder}/geneInfo.tab"),
+                    Channel.fromPath("${params.ref_folder}/Genome"),
+                    Channel.fromPath("${params.ref_folder}/genomeParameters.txt"),
+                    Channel.fromPath("${params.ref_folder}/SA"),
+                    Channel.fromPath("${params.ref_folder}/SAindex"),
+                    Channel.fromPath("${params.ref_folder}/sjdbInfo.txt"),
+                    Channel.fromPath("${params.ref_folder}/transcriptInfo.tab"),
+                    Channel.fromPath("${params.ref_folder}/sjdbList.fromGTF.out.tab"),
+                    Channel.fromPath("${params.ref_folder}/sjdbList.out.tab"))
+}
+
+known_snps = file( params.snp_vcf )
+known_snps_index = file( params.snp_vcf+'.tbi' )
+known_indels = file( params.indel_vcf )
+known_indels_index = file( params.indel_vcf+'.tbi' )
+
+// ---------------------------
+// INPUT CHECKS - either infile mode (tab) or fastq/bam scan
+// ---------------------------
+
+def mode = null
+if (params.input_file) {
+    mode = 'infile'
+} else {
+    if (file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.fastq_ext}/ }.size() > 0) {
+		mode = 'fastq'
+        println "fastq files found, proceed with alignment"
+		
+    } else {
+        if (file(params.input_folder).listFiles().findAll { it.name ==~ /.*bam/ }.size() > 0) {
+			mode = 'bam'
+            println "BAM files found, proceed with realignment"
+        } else {
+            error "ERROR: input folder contains no fastq nor BAM files"
+        }
+    }
+}
 
 
-log.info "" 
-log.info "--------------------------------------------------------"
+// ---------------------------
+// PROCESSES
+// ---------------------------
+
+    process BAM2FASTQ {
+        tag { file_tag }
+        cpus 1
+        memory "${params.mem_QC}G"
+
+        input:
+        tuple val(file_tag), val(rg), path(infile) 
+
+        output:
+        tuple val(file_tag), val(rg), path("${file_tag}${params.suffix1}.${params.fastq_ext}"), path("${file_tag}${params.suffix2}.${params.fastq_ext}"), emit: readPairs0
+
+        script:
+        """
+        set -euo pipefail
+        samtools collate -u -O -n 128 ${infile} tmp_${file_tag} |
+		samtools fastq -1 ${file_tag}${params.suffix1}.${params.fastq_ext} -2 ${file_tag}${params.suffix2}.${params.fastq_ext} -0 /dev/null -s /dev/null -n -
+        """
+    }
+
+	process FASTQC_PRETRIM {
+		tag { file_tag }
+		cpus params.cpu
+		memory "${params.mem_QC}GB"
+
+		input:
+		tuple val(file_tag), val(rg), path(pair1), path(pair2) 
+
+		output:
+		path "*_pretrim_fastqc.zip", emit: fastqc_pairs
+
+		publishDir "${params.output_folder}/QC/fastq", mode: 'copy', pattern: '*fastqc.zip'
+
+		script:
+		"""
+    	set -euo pipefail
+
+    	ext='${params.fastq_ext}'
+    	suffix1='${params.suffix1}'
+    	suffix2='${params.suffix2}'
+
+    	pair1_file='${pair1}'
+    	pair2_file='${pair2}'
+    	file_tag='${file_tag}'
+    	rg='${rg}'
+
+    	basename1=\$(basename "\$pair1_file" ".\$ext")
+
+    	if [ "\$(basename "\$pair2_file")" != "NO_fastq2" ]; then
+        	basename2=\$(basename "\$pair2_file" ".\$ext")
+        	fastqc -t ${task.cpus} "\$pair1_file" "\$pair2_file"
+       	 	mv "\${basename1}_fastqc.zip" "\${file_tag}\${suffix1}_\${rg}_pretrim_fastqc.zip"
+        	mv "\${basename2}_fastqc.zip" "\${file_tag}\${suffix2}_\${rg}_pretrim_fastqc.zip"
+    	else
+        	fastqc -t ${task.cpus} "\$pair1_file"
+        	mv "\${basename1}_fastqc.zip" "\${file_tag}\${suffix1}_\${rg}_pretrim_fastqc.zip"
+    	fi
+    	"""
+}
+
+	process MULTIQC_PRETRIM {
+		tag { "all" }
+		cpus 1
+		memory "${params.mem_QC}GB"
+
+		input:
+		path fastqc1 
+		path multiqc_config 
+
+		output:
+		path "multiqc_pretrim_report.html" , emit: multiqc_pre
+		path "multiqc_pretrim_report_data" , emit: multiqc_pre_data
+
+		publishDir "${params.output_folder}/QC", mode: 'copy'
+
+		script:
+ 		"""
+    	set -euo pipefail
+
+    	config_file='${multiqc_config}'
+
+    	if [ "\$(basename "\$config_file")" = "NO_FILE" ]; then
+        	opt=""
+    	else
+        	opt="--config \$config_file"
+    	fi
+
+ 		while IFS= read -r -d '' f; do
+        	cp --remove-destination "\$(readlink "\$f")" "\$f" || true
+    		done < <(find . -name "*_pretrim_fastqc.zip" -type l -print0)
+  		multiqc . -n multiqc_pretrim_report.html -m fastqc \$opt --comment "RNA-seq Pre-trimming QC report"
+    		"""
+		}
+
+    process ADAPTER_TRIMMING {
+        tag { file_tag + rg }
+        cpus params.cpu_trim
+        memory "${params.mem_QC}GB"
+
+        input:
+        tuple val(file_tag), val(rg), path(pair1), path(pair2) 
+		// from readPairs
+
+        output:
+		tuple val(file_tag), val(rg), path("${file_tag}${rg}*val_1.fq.gz"), path("${file_tag}${rg}*val_2.fq.gz"), emit: readPairs2
+        path "*_fastqc.zip" , emit: fastqc_postpairs
+        path "*trimming_report.txt" , emit: trimming_reports
+
+        publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: '*trimming_report.txt'
+        publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: '*fastqc.zip'
+
+        script:
+        """
+		set -euo pipefail
+
+        cpu_tg=\$(( ${task.cpus} - 1 ))
+        cpu_tg3=\$(python - <<PY
+		import math
+		print(max(1, int(math.ceil(${task.cpus} / 3.5))))
+		PY
+		)
+		if [ "\$(basename ${pair2})" != "NO_fastq2" ]; then
+        	opts="--paired"
+        	trim_galore \$opts --fastqc --gzip \
+            	--basename ${file_tag}${rg} \
+            	-j \$cpu_tg3 \
+            	${pair1} ${pair2}
+    	else
+        	trim_galore --fastqc --gzip \
+            	--basename ${file_tag}${rg} \
+            	-j \$cpu_tg3 \
+            	${pair1}
+
+        # Normalise to paired-like outputs
+        	mv ${file_tag}${rg}_trimmed.fq.gz ${file_tag}${rg}_val_1.fq.gz
+        	touch ${file_tag}${rg}_val_2.fq.gz
+   		fi
+        """
+    }
+
+	process ALIGNMENT {
+    tag { file_tag }
+    cpus params.cpu
+    memory "${params.mem}G"
+
+    input:
+    tuple val(file_tag), val(rg), path(pair1), path(pair2)
+    path ref
+    path gtf
+
+    output:
+    tuple val(file_tag), val(rg), path("${file_tag}.bam"), path("${file_tag}.bam.bai"), emit: bam_files
+    path "*Log*", emit: align_out
+    tuple val(file_tag), path("*SJ.out.junction"), emit: SJ_out
+    path "*SJ.out.tab", emit: SJ_out_others
+
+    publishDir "${params.output_folder}/BAM", mode: 'copy', pattern: "*.bam*"
+    publishDir "${params.output_folder}/BAM", mode: 'copy', pattern: "*.out.junction"
+    publishDir "${params.output_folder}/BAM", mode: 'copy', pattern: "*.out.tab"
+    publishDir "${params.output_folder}/QC/alignment", mode: 'copy', pattern: "*Log*"
+
+	script:
+   // ---------- Groovy-side calculations ----------
+    def align_threads = Math.max(1, params.cpu.intdiv(2))
+    def sort_threads  = Math.max(1, params.cpu.intdiv(2) - 1)
+    def sort_mem      = Math.max(1, params.mem.intdiv(4))
+
+    // RG handling - normalisation of lists after groupTuple()
+    def rg_list = rg instanceof List ? rg : [ rg ]
+
+    def pair1_list = pair1 instanceof List ? pair1 : [pair1]
+    def pair2_list = pair2 instanceof List ? pair2 : [pair2]
+	// Construction of RG line for STAR
+    def rgline = rg_list.collect { r ->
+        def id = r ?: file_tag
+        "ID:${id}\tSM:${file_tag}\t${params.RG}"
+    }.join(' , ')
+
+	// Construction of STAR input files
+    def input_f1 = pair1_list.collect { it.toString() }.join(',')
+
+  // FASTQ handling (single- or paired-end)
+  
+   def pairs
+    if (pair2_list && pair2_list[0].getName() != 'NO_fastq2') {
+        def input_f2 = pair2_list.collect { it.toString() }.join(',')
+        pairs = "${input_f1} ${input_f2}"
+    }
+    else {
+        pairs = input_f1
+    }
+
+   """
+    set -euo pipefail
+
+    STAR --outSAMattrRGline "${rgline}" \
+         --outSAMmapqUnique ${params.STAR_mapqUnique} \
+         --chimSegmentMin 12 \
+         --chimJunctionOverhangMin 12 \
+         --chimSegmentReadGapMax 3 \
+         --alignSJDBoverhangMin 10 \
+         --alignMatesGapMax 100000 \
+         --alignIntronMax 100000 \
+         --alignSJstitchMismatchNmax 5 -1 5 5 \
+         --outSAMstrandField intronMotif \
+         --chimMultimapScoreRange 10 \
+         --chimMultimapNmax 10 \
+         --chimNonchimScoreDropMin 10 \
+         --peOverlapNbasesMin 12 \
+         --peOverlapMMp 0.1 \
+         --chimOutJunctionFormat 1 \
+         --twopassMode Basic \
+         --outReadsUnmapped None \
+         --runThreadN ${align_threads} \
+		 --limitOutSJcollapsed 10000000 \
+		 --limitIObufferSize 2700000000 \
+		 --limitSjdbInsertNsj 3000000 \
+         --genomeDir ${params.ref_folder} \
+         --sjdbGTFfile ${gtf} \
+         --readFilesCommand zcat \
+         --readFilesIn ${pairs} \
+         --outStd SAM \
+    | samblaster --addMateTags \
+    | sambamba view -S -f bam -l 0 /dev/stdin \
+    | sambamba sort -t ${sort_threads} -m ${sort_mem}G \
+        --tmpdir=${file_tag}_tmp \
+        -o ${file_tag}.bam /dev/stdin
+
+    sambamba index -t ${sort_threads} ${file_tag}.bam
+
+    mv Chimeric.out.junction STAR.${file_tag}.Chimeric.SJ.out.junction || true
+    mv SJ.out.tab            STAR.${file_tag}.SJ.out.tab || true
+    mv Log.final.out         STAR.${file_tag}.Log.final.out || true
+    mv Log.out               STAR.${file_tag}.Log.out || true
+    mv Log.progress.out      STAR.${file_tag}.Log.progress.out || true
+    mv Log.std.out           STAR.${file_tag}.Log.std.out || true
+    """
+}
+
+    process SPLICE_JUNCT_TRIM {
+        tag { file_tag }
+        cpus params.cpu_gatk
+        memory "${params.mem}G"
+
+        input:
+        tuple val(file_tag), val(rg), path(bam), path(bai)
+        path fasta_ref
+        path fasta_ref_fai
+        path fasta_ref_dict
+
+        output:
+        tuple val("${file_tag}_split"), val(rg), path("${file_tag}_split.bam"), path("${file_tag}_split.bam.bai"), emit: bam_files2
+
+    	publishDir "${params.output_folder}/SPJTRIM/", mode: 'copy', pattern: ".bam"
+
+        script:
+		def file_tag_new = file_tag+'_split'
+        """
+  		set -euo pipefail
+        gatk SplitNCigarReads --java-options "-Xmx${task.memory.toGiga()}G" -R ${fasta_ref} -I ${bam} -O ${file_tag}_split.bam
+		mv ${file_tag_new}.bai ${file_tag_new}.bam.bai
+        """
+    }
+
+    process BASE_QUALITY_SCORE_RECALIBRATION {
+        tag { file_tag }
+        cpus params.cpu_gatk
+        memory "${params.mem}G"
+
+//        publishDir "${params.output_folder}/BAM/", mode: 'copy', pattern: "*bam*"
+//        publishDir "${params.output_folder}/QC/BAM/BQSR/", mode: 'copy',
+//                   saveAs: { filename ->
+//                       if (filename.indexOf("table") > 0) "${filename}"
+//                       else if (filename.indexOf("plots") > 0) "${filename}"
+//                       else null
+//                   }
+
+        input:
+        tuple val(file_tag), val(rg), path(bam), path(bai)
+    	path known_snps
+    	path known_snps_index
+    	path known_indels
+    	path known_indels_index
+    	path fasta_ref
+    	path fasta_ref_fai
+    	path fasta_ref_dict
+
+        output:
+    	path("${file_tag}_recal.table"), emit: recal_table_files
+    	path("${file_tag}_recalibration_plots.pdf"), emit: recal_plots_files
+    	tuple val("${file_tag}_BQSRecalibrated"), val(rg), path("${file_tag}_BQSRecalibrated.bam"), path("${file_tag}_BQSRecalibrated.bam.bai"), emit: bam_files3
+
+    	publishDir "${params.output_folder}/RECAL/", mode: 'copy', pattern: "*.bam*"
+    	publishDir "${params.output_folder}/RECAL/", mode: 'copy', pattern: "*_recal.table"
+    	publishDir "${params.output_folder}/RECAL/", mode: 'copy', pattern: "*_recalibration_plots.pdf"
+
+        script:
+		def file_tag_new=file_tag+'_BQSRecalibrated'
+		"""
+    	set -euo pipefail
+    	file_tag_new=${file_tag}_BQSRecalibrated
+		gatk BaseRecalibrator --java-options "-Xmx${task.memory.toGiga()}G" -R ${fasta_ref} -I ${bam} --known-sites ${known_snps} --known-sites ${known_indels} -O ${file_tag}_recal.table
+   		gatk ApplyBQSR --java-options "-Xmx${task.memory.toGiga()}G" -R ${fasta_ref} -I ${bam} --bqsr-recal-file ${file_tag}_recal.table -O ${file_tag_new}.bam
+    	gatk BaseRecalibrator --java-options "-Xmx${task.memory.toGiga()}G" -R ${fasta_ref} -I ${file_tag_new}.bam --known-sites ${known_snps} --known-sites ${known_indels} -O ${file_tag_new}_recal.table
+   		gatk AnalyzeCovariates --java-options "-Xmx${task.memory.toGiga()}G" -before ${file_tag}_recal.table -after ${file_tag_new}_recal.table -plots ${file_tag}_recalibration_plots.pdf
+		mv ${file_tag_new}.bai ${file_tag_new}.bam.bai
+    	"""
+    }
+
+	process RSEQC { //(read distribution, clipping, junction saturation)
+		tag { file_tag }
+		cpus 1
+		memory "${params.mem_QC}GB"
+
+		input:
+			tuple val(file_tag), val(rg), path(bam), path(bai)
+			// from bam_files_for_quantif
+			file bed
+			// from bed
+
+		output:
+			path "${file_tag}_readdist.txt" , emit: rseqc_files
+			path "*clipping*" , emit: rseqc_clip_files
+			path "*jun_saturation*" , emit: rseqc_jsat_files
+
+		publishDir "${params.output_folder}/QC/bam", mode: 'copy'
+
+		script:
+		"""
+		set -euo pipefail
+		read_distribution.py -i ${bam} -r ${bed} > ${file_tag}_readdist.txt
+		clipping_profile.py  -i ${bam} -s "PE" -o ${file_tag}_clipping
+		junction_saturation.py -i ${bam} -r ${bed} -o ${file_tag}_jun_saturation
+		"""
+}
+
+	process RSEQCSPLIT {
+		tag { file_tag }
+		cpus 1
+		memory "${params.mem_QC}GB"
+	
+		input:
+		tuple val(file_tag), val(rg), path(bam), path(bai)
+		// from bam_files_for_quantif
+		file bed
+		// from bed
+
+		output:
+		path "*readdist.txt" , emit: rseqc_files_split
+
+		publishDir "${params.output_folder}/QC/bam", mode: 'copy'
+
+		script:
+		"""
+		set -euo pipefail
+		basename=\$(basename ${bam})
+		samtools split ${bam} -f "%*_%!.%."
+		for f in \${basename}_*.bam; do
+    		read_distribution.py -i \$f -r ${bed} > \${f%.bam}_readdist.txt
+		done
+		"""
+}
+
+	process QUANTIFICATION {
+		tag { file_tag }
+		cpus params.cpu
+		memory { (params.sjtrim || params.recalibration) ? "${params.mem}G" : "${params.mem_QC}G" }
+
+		input:
+		tuple val(file_tag), val(rg), path(bam), path(bai)
+		// from bam_files_for_quantif
+		file gtf
+		// from gtf
+
+		output:
+		path "${file_tag}_count.txt" , emit: htseq_files
+
+		publishDir "${params.output_folder}/counts", mode: 'copy'
+
+		script:
+
+def buffer = (params.htseq_maxreads && params.htseq_maxreads != 'null') \
+    ? "--max-reads-in-buffer ${params.htseq_maxreads}" \
+    : ""
+
+def sort_mode = (params.sjtrim || params.recalibration) ? "name" : "pos"
+
+"""
+set -euo pipefail
+
+if [ "${sort_mode}" == "name" ]; then
+    mv ${file_tag}.bam ${file_tag}_coordinate_sorted.bam
+
+    sambamba sort -n \
+        -t ${task.cpus} \
+        -m ${params.mem}G \
+        --tmpdir=${file_tag}_tmp \
+        -o ${file_tag}.bam \
+        ${file_tag}_coordinate_sorted.bam
+fi
+
+htseq-count \
+    -n ${params.cpu} \
+    -r ${sort_mode} \
+    -s ${params.stranded} \
+    -f bam \
+    ${file_tag}.bam \
+    ${gtf} \
+    ${buffer} \
+    --additional-attr=gene_name \
+    > ${file_tag}_count.txt
+"""
+}
+
+	process MULTIQC_POSTTRIM {
+		tag { "all" }
+		cpus 1
+		memory "${params.mem_QC}GB"
+
+		input:
+		path STAR // log from align_out
+		path htseq // count from quantif - htseq_files
+		path rseqc_clip // clipping from RSEQC - rseqc_clip_files
+		path rseqc // readdist from RSEQC - from rseqc_files
+		path rseqc_jsat // jun_saturation RSEQC - from rseqc_jsat_files
+		path trim // from adapter Trimming - trimming_report.txt
+		path fastqcpost // from adapter Trimming - fastqc.zip
+		path rseqc_split // from RSEQCSPLIT - readdist.txt
+		path multiqc_config // from multiqc
+
+		output:
+		path "multiqc_posttrim_report.html" , emit: multiqc_post
+		path "multiqc_posttrim_report_data" , emit: multiqc_post_data
+
+		publishDir "${params.output_folder}/QC", mode: 'copy'
+
+		script:
+		"""
+		set -euo pipefail
+		
+		config_file='${multiqc_config}'
+
+    	if [ "\$(basename "\$config_file")" = "NO_FILE" ]; then
+        	opt=""
+    	else
+        	opt="--config \$config_file"
+    	fi
+
+		if compgen -G "*fastq.zip" > /dev/null; then
+			for f in \$(find . -name "*_fastqc.zip" -type l); do 
+				cp --remove-destination \$(readlink \$f) \$f || true; 
+			done
+		fi
+		multiqc . -n multiqc_posttrim_report.html -m fastqc -m cutadapt -m star -m rseqc -m htseq \$opt --comment "RNA-seq Post-trimming QC report"
+		"""
+}
+
+// ========================================================================================================================================================
+// WORKFLOW
+// ========================================================================================================================================================
+
+workflow {
+  		log.info IARC_Header()
+// --------------------------------------------------
+// INFO / HELP
+// --------------------------------------------------
+log.info ""
+log.info "----------------------------------------------------------------------------------------------------------------"
 log.info "  RNAseq-nf 2.4.0: alignment, QC, and reads counting workflow for RNA sequencing "
-log.info "--------------------------------------------------------"
+log.info "----------------------------------------------------------------------------------------------------------------"
 log.info "Copyright (C) IARC/WHO"
 log.info "This program comes with ABSOLUTELY NO WARRANTY; for details see LICENSE"
-log.info "This is free software, and you are welcome to redistribute it"
-log.info "under certain conditions; see LICENSE for details."
-log.info "--------------------------------------------------------"
+log.info "This is free software, and you are welcome to redistribute it under certain conditions; see LICENSE for details."
+log.info "----------------------------------------------------------------------------------------------------------------"
 log.info ""
-
 
 if (params.help) {
     log.info '-------------------------------------------------------------'
@@ -85,7 +635,7 @@ if (params.help) {
     log.info '    --fastq_ext      STRING                 Extension of fastq files (default : fq.gz)'
     log.info '    --suffix1        STRING                 Suffix of fastq files 1 (default : _1)'
     log.info '    --suffix2        STRING                 Suffix of fastq files 2 (default : _2)'
-    log.info '    --htseq_maxreads INTEGER		  Maximum number of reads taken into account by htseq-count (default: htseq-count default=30000000)'
+    log.info '    --htseq_maxreads INTEGER               Maximum number of reads taken into account by htseq-count (default: htseq-count default=30000000)'
     log.info '    --snp_vcf        STRING                 Path to SNP VCF from GATK bundle (default : dbsnp.vcf)'
     log.info '    --indel_vcf      STRING                 Path to indel VCF from GATK bundle (default : Mills_1000G_indels.vcf)'
     log.info '    --stranded       STRING                 Are reads stranded? (default : no; alternatives : yes, r)'
@@ -99,537 +649,177 @@ if (params.help) {
     log.info '    --cutadapt                              perform adapter sequence trimming'
     log.info ''
     exit 0
-
-}else {
-  /* Software information */
-  log.info "input_folder   = ${params.input_folder}"
-  log.info "input_file     = ${params.input_file}"
-  log.info "ref            = ${params.ref}"
-  log.info "cpu            = ${params.cpu}"
-  log.info "cpu_gatk       = ${params.cpu_gatk}"
-  log.info "cpu_trim       = ${params.cpu_trim}"
-  log.info "mem            = ${params.mem}"
-  log.info "mem_QC         = ${params.mem_QC}"
-  log.info "fastq_ext      = ${params.fastq_ext}"
-  log.info "suffix1        = ${params.suffix1}"
-  log.info "suffix2        = ${params.suffix2}"
-  log.info "output_folder  = ${params.output_folder}"
-  log.info "bed            = ${params.bed}"
-  log.info "ref_folder     = ${params.ref_folder}"
-  log.info "gtf            = ${params.gtf}"
-  log.info "RG             = ${params.RG}"
-  log.info "STAR_mapqUnique = ${params.STAR_mapqUnique}"
-  log.info "stranded       = ${params.stranded}"
-  log.info "hisat2_idx     = ${params.hisat2_idx}"
-  log.info "hisat2         = ${params.hisat2}"
-  log.info "htseq_maxreads = ${params.htseq_maxreads}"
-  log.info "multiqc_config = ${params.multiqc_config}"
-  log.info "recalibration  = ${params.recalibration}"
-  log.info "sjtrim         = ${params.sjtrim}"
-  log.info "cutadapt       = ${params.cutadapt}"
-  log.info "snp_vcf        = ${params.snp_vcf}"
-  log.info "indel_vcf      = ${params.indel_vcf}"
-  log.info "help           = ${params.help}"
-}
-
-suffix2 = params.suffix2
-if(suffix2=="null" ) suffix2 = null
-
-//multiqc config file
-ch_config_for_multiqc = file(params.multiqc_config)
-
-//read ref files
-if(params.hisat2){
-	ref_1  = Channel.fromPath(params.ref_folder + '/' + params.hisat2_idx + '.1.ht2')
-	ref_2  = Channel.fromPath(params.ref_folder + '/' + params.hisat2_idx + '.2.ht2')
-	ref_3  = Channel.fromPath(params.ref_folder + '/' + params.hisat2_idx + '.3.ht2')
-	ref_4  = Channel.fromPath(params.ref_folder + '/' + params.hisat2_idx + '.4.ht2')
-	ref_5  = Channel.fromPath(params.ref_folder + '/' + params.hisat2_idx + '.5.ht2')
-	ref_6  = Channel.fromPath(params.ref_folder + '/' + params.hisat2_idx + '.6.ht2')
-	ref_7  = Channel.fromPath(params.ref_folder + '/' + params.hisat2_idx + '.7.ht2')
-	ref_8  = Channel.fromPath(params.ref_folder + '/' + params.hisat2_idx + '.8.ht2')
-	ref    = ref_1.concat( ref_2,ref_3,ref_4,ref_5,ref_6,ref_7,ref_8)
-}else{
-	ref_1  = Channel.fromPath(params.ref_folder +'/chrStart.txt')
-	ref_2  = Channel.fromPath(params.ref_folder +'/chrNameLength.txt')
-	ref_3  = Channel.fromPath(params.ref_folder +'/chrName.txt')
-	ref_4  = Channel.fromPath(params.ref_folder +'/chrLength.txt')
-	ref_5  = Channel.fromPath(params.ref_folder +'/exonGeTrInfo.tab')
-	ref_6  = Channel.fromPath(params.ref_folder +'/exonInfo.tab')
-	ref_7  = Channel.fromPath(params.ref_folder +'/geneInfo.tab')
-	ref_8  = Channel.fromPath(params.ref_folder +'/Genome')
-	ref_9  = Channel.fromPath(params.ref_folder +'/genomeParameters.txt')
-	ref_10 = Channel.fromPath(params.ref_folder +'/SA')
-	ref_11 = Channel.fromPath(params.ref_folder +'/SAindex')
-	ref_12 = Channel.fromPath(params.ref_folder +'/sjdbInfo.txt')
-	ref_13 = Channel.fromPath(params.ref_folder +'/transcriptInfo.tab')
-	ref_14 = Channel.fromPath(params.ref_folder +'/sjdbList.fromGTF.out.tab')
-	ref_15 = Channel.fromPath(params.ref_folder +'/sjdbList.out.tab')
-	ref    = ref_1.concat( ref_2,ref_3,ref_4,ref_5,ref_6,ref_7,ref_8,ref_9,ref_10,ref_11,ref_12,ref_13,ref_14,ref_15)
+} else {
+    log.info "input_folder   = ${params.input_folder}"
+    log.info "input_file     = ${params.input_file}"
+    log.info "ref            = ${params.ref}"
+    log.info "cpu            = ${params.cpu}"
+    log.info "cpu_gatk       = ${params.cpu_gatk}"
+    log.info "cpu_trim       = ${params.cpu_trim}"
+    log.info "mem            = ${params.mem}"
+    log.info "mem_QC         = ${params.mem_QC}"
+    log.info "fastq_ext      = ${params.fastq_ext}"
+    log.info "suffix1        = ${params.suffix1}"
+    log.info "suffix2        = ${params.suffix2}"
+    log.info "output_folder  = ${params.output_folder}"
+    log.info "bed            = ${params.bed}"
+    log.info "ref_folder     = ${params.ref_folder}"
+    log.info "gtf            = ${params.gtf}"
+    log.info "RG             = ${params.RG}"
+    log.info "STAR_mapqUnique = ${params.STAR_mapqUnique}"
+    log.info "stranded       = ${params.stranded}"
+    log.info "hisat2_idx     = ${params.hisat2_idx}"
+    log.info "hisat2         = ${params.hisat2}"
+    log.info "htseq_maxreads = ${params.htseq_maxreads}"
+    log.info "multiqc_config = ${params.multiqc_config}"
+    log.info "recalibration  = ${params.recalibration}"
+    log.info "sjtrim         = ${params.sjtrim}"
+    log.info "cutadapt       = ${params.cutadapt}"
+    log.info "snp_vcf        = ${params.snp_vcf}"
+    log.info "indel_vcf      = ${params.indel_vcf}"
+    log.info "help           = ${params.help}"
 }
 
 
-gtf    = file(params.gtf)
-bed    = file(params.bed)
+     // ----------------------------------------
+     // 0. INPUT NORMALISATION
+     // ----------------------------------------
 
-//read files
-if(params.input_file){
-	mode = 'infile'
-	Channel.fromPath("${params.input_file}")
-     	       .splitCsv( header: true, sep: '\t', strip: true )
-	       .map { row -> [ row.SM , row.RG , file(row.pair1), file(row.pair2) ] }
-	       .into{ readPairs ; readPairs2}
-}else{
-	mode = 'fastq'
-	if (file(params.input_folder).listFiles().findAll { it.name ==~ /.*${params.fastq_ext}/ }.size() > 0){
-	    println "fastq files found, proceed with alignment"
-	}else{
-	    if (file(params.input_folder).listFiles().findAll { it.name ==~ /.*bam/ }.size() > 0){
-	        println "BAM files found, proceed with realignment"; mode ='bam'
-		files = Channel.fromPath( params.input_folder+'/*.bam' )
-		               .map {  path -> [ path.name.replace(".bam",""), "" ,  path ] }
-	    }else{
-	        println "ERROR: input folder contains no fastq nor BAM files"; System.exit(0)
-	    }
-	}
-}
+    def readPairs
+    def readPairs2
+    def files
 
-if(mode=='bam'){
-    process bam2fastq {
-        cpus '1'
-        memory params.mem_QC+'G'
-        tag { file_tag }
-        
-        input:
-        set val(file_tag) , val(rg), file(infile) from files
-     
-        output:
-	set val(file_tag), val(file_tag), file("${file_tag}_1.fq.gz"), file("${file_tag}_2.fq.gz")  into readPairs0
-
-        shell:
-	file_tag = infile.baseName
+	// If file as input
+     if (mode == 'infile') {
+   		readPairs = Channel.fromPath(params.input_file)
+        .splitCsv(header: true, sep: '\t', strip: true)
+        .map { row -> tuple(row.SM, row.RG, file(row.pair1), file(row.pair2)) }
+		readPairs2 = readPairs
+		}
+	 
+	 // If BAM as input : process bam -> fastq //
+		else if (mode == 'bam') {
+		files = Channel.fromPath("${params.input_folder}/*.bam")
+                          .map { path -> tuple(path.baseName, '', path) }
 		
-        '''
-        set -o pipefail
-        samtools collate -uOn 128 !{file_tag}.bam tmp_!{file_tag} | samtools fastq -1 !{file_tag}!{params.suffix1}.!{params.fastq_ext} -2 !{file_tag}!{params.suffix2}.!{params.fastq_ext} -
-        '''
-    }
-    readPairs0.into{ readPairs ; readPairs2}
-}else{
-if(mode=='fastq'){
-    println "fastq mode"
-    
-    if(suffix2){
-        println "paired library"
-        readPairs0 = Channel.fromFilePairs(params.input_folder +"/*{${params.suffix1},${params.suffix2}}" +'.'+ params.fastq_ext)
-			      .map { row -> [ row[0] , "" , row[1][0], row[1][1] ] }
-                  .view()
-                  .into{ readPairs ; readPairs2}
-    }else{
-        println "single library"
-        readPairs0 = Channel.fromPath(params.input_folder +"/*${params.suffix1}" +'.'+ params.fastq_ext)
-			      .map { row -> [ row.name.replace("${params.suffix1}.${params.fastq_ext}","") , "" , row , file("NO_fastq2") ] }
-                  .view()
-                  .into{ readPairs ; readPairs2}
-    }
-}
-}
-
-
-// pre-trimming QC
-process fastqc_pretrim {
-	cpus params.cpu
-        memory params.mem_QC+'GB'    
-        tag { file_tag }
-        
-        input:
-        set val(file_tag), val(rg), file(pair1) , file(pair2) from readPairs
+		def bam2fq_out = BAM2FASTQ(files)
+        readPairs = bam2fq_out.readPairs0
+        readPairs2 = bam2fq_out.readPairs0
+		} 
 	
-        output:
-	file("*_pretrim_fastqc.zip") into fastqc_pairs
-	
-	publishDir "${params.output_folder}/QC/fastq", mode: 'copy', pattern: '{*fastqc.zip}'
+	// IF FASTQ as input: build readPairs/readPairs2 channels if not already filled /////
+		else if (mode == 'fastq') {
+    		if (params.suffix2) {
+        		readPairs = Channel.fromFilePairs("${params.input_folder}/*{${params.suffix1},${params.suffix2}}.${params.fastq_ext}")
+               .map { row -> tuple(row[0], '', row[1][0], row[1][1]) }
+    			} else {
+       	 				readPairs = Channel.fromPath("${params.input_folder}/*${params.suffix1}.${params.fastq_ext}")
+               			.map { row -> tuple(row.name.replace("${params.suffix1}.${params.fastq_ext}", ''),'', row, file('NO_fastq2') ) }
+   				 		}
+						readPairs2 = readPairs
+			}
 
-	shell:
-	basename1=pair1.name.replace(".${params.fastq_ext}","") //baseName.split("\\.")[0]
-	basename2=pair2.name.replace(".${params.fastq_ext}","") //baseName.split("\\.")[0]
-    if(suffix2){
-        pairs="${pair1} ${pair2}"
-    }else{
-        pairs="${pair1}"
-    }
-    '''
-	fastqc -t !{task.cpus} !{pairs}
-	mv !{basename1}_fastqc.zip !{file_tag}!{params.suffix1}!{rg}_pretrim_fastqc.zip
-	if [ ! -L NO_fastq2 ]
-        then mv !{basename2}_fastqc.zip !{file_tag}!{params.suffix2}!{rg}_pretrim_fastqc.zip 
-    fi 
-    '''
+     // ----------------------------------------
+     // 1. FASTQC PRETRIM
+     // ----------------------------------------
+
+	def fastqc1 = FASTQC_PRETRIM(readPairs)
+
+    // --------------------------------------------------------------
+    // 2. OPTIONAL ADAPTER TRIMMING
+    // --------------------------------------------------------------
+
+	def readPairs_for_align
+	def trim_reports_ch = Channel.empty()
+	def fastqc_postpairs_ch = Channel.empty()
+	if (params.cutadapt) {
+ 	def trim = ADAPTER_TRIMMING(readPairs)
+	readPairs_for_align = trim.readPairs2
+	trim_reports_ch = trim.trimming_reports
+	fastqc_postpairs_ch = trim.fastqc_postpairs
+	} else {
+			readPairs_for_align = readPairs
+    		}
+
+
+    // --------------------------------------------------------------
+    // 3. MULTIQC PRETRIM - TO CHECK
+    // --------------------------------------------------------------
+
+//	if (params.cutadapt) {
+//		fastqc_pretrim_all = fastqc_postpairs_ch.collect()
+//		}
+//	else {
+		fastqc_pretrim_all = fastqc1.collect()
+//		}
+	MULTIQC_PRETRIM(fastqc_pretrim_all,multiqc)
+
+
+    // --------------------------------------------------------------
+    // 4. ALIGNMENT
+    // --------------------------------------------------------------
+
+	//To manage grouping by RG and get only 1 bam per sample:
+	readPairs_align = readPairs_for_align.groupTuple(by: 0)
+	def align = ALIGNMENT(readPairs_align,aligner_ref,gtf)
+
+    // --------------------------------------------------------------
+    // 5. OPTIONAL SPLICE JUNCTION TRIM
+    // --------------------------------------------------------------
+
+
+	def bam_files_for_bqsr
+	def bam_files_for_quantif
+	if (params.sjtrim) {
+        def sjt = SPLICE_JUNCT_TRIM(align.bam_files,fasta_ref,fasta_ref_fai,fasta_ref_dict)
+		bam_files_for_bqsr = sjt.bam_files2
+		bam_files_for_quantif = bam_files_for_bqsr
+		} else {
+				 bam_files_for_bqsr = align.bam_files
+				 bam_files_for_quantif = bam_files_for_bqsr
+				}
+
+    // --------------------------------------------------------------
+    // 6. OPTIONAL BQSR
+    // --------------------------------------------------------------
+
+	if (params.recalibration) {
+        def bq = BASE_QUALITY_SCORE_RECALIBRATION(bam_files_for_bqsr,known_snps,known_snps_index,known_indels,known_indels_index,fasta_ref,fasta_ref_fai,fasta_ref_dict)
+		bam_files_for_quantif = bq.bam_files3
+		} else {
+        		bam_files_for_quantif = bam_files_for_bqsr
+    			} 
+
+    // --------------------------------------------------------------
+    // 7. RSEQC
+    // --------------------------------------------------------------
+
+    def rs = RSEQC(bam_files_for_quantif,bed)
+
+    // --------------------------------------------------------------
+    // 8. RSEQCSPLIT
+    // --------------------------------------------------------------
+
+    def rss = RSEQCSPLIT(bam_files_for_quantif,bed)
+
+    // --------------------------------------------------------------
+    // 9. QUANTIFICATION (RNA only)
+    // --------------------------------------------------------------
+  
+	def quant = QUANTIFICATION(bam_files_for_quantif,gtf)
+
+    // --------------------------------------------------------------
+    // 10. MULTIQC POSTRIM
+    // --------------------------------------------------------------
+
+	align_out_all        = align.align_out.collect()
+	htseq_all            = quant.htseq_files.collect()
+	rseqc_clip_all       = rs.rseqc_clip_files.collect()
+	rseqc_all            = rs.rseqc_files.collect()
+	rseqc_jsat_all       = rs.rseqc_jsat_files.collect()
+	trim_reports_all     = trim_reports_ch.collect()
+	fastqc_post_all      = fastqc_postpairs_ch.collect()
+	rseqc_split_all      = rss.rseqc_files_split.collect()
+
+	MULTIQC_POSTTRIM(align_out_all,htseq_all,rseqc_clip_all,rseqc_all,rseqc_jsat_all,trim_reports_all,fastqc_post_all,rseqc_split_all,multiqc)
 }
-
-// adapter sequence trimming and post trimming QC
-if(params.cutadapt!=null){
-	process adapter_trimming {
-        cpus params.cpu_trim
-        memory params.mem_QC+'GB'
-        tag { file_tag +rg }
-	    
-        input:
-	    set val(file_tag), val(rg), file(pair1), file(pair2) from readPairs2
-	    
-        output:
-        set val(file_tag), val(rg) , file("${file_tag}${rg}*val_1.fq.gz"), file("${file_tag}${rg}*val_2.fq.gz")  into readPairs3
-	    file("*_fastqc.zip") into fastqc_postpairs
-	    file("*trimming_report.txt") into trimming_reports
-	    
-	    publishDir "${params.output_folder}/QC/adapter_trimming", mode: 'copy', pattern: '{*report.txt,*fastqc.zip}'
-	    
-        shell:
-	    cpu_tg = params.cpu_trim -1
-	    cpu_tg2 = cpu_tg.div(3.5)
-	    cpu_tg3 = Math.round(Math.ceil(cpu_tg2))
-        if(suffix2){
-            pairs="${pair1} ${pair2}"
-            opts="--paired "
-        }else{
-            pairs="${pair1}"
-            opts=" "
-        }
-        '''
-	    trim_galore !{opts} --fastqc --gzip --basename !{file_tag}!{rg} -j !{cpu_tg3} !{pairs}
-        if [ -L NO_fastq2 ]
-            mv !{file_tag}!{rg}_trimmed.fq.gz !{file_tag}!{rg}_val_1.fq.gz
-            then touch !{file_tag}!{rg}_val_2.fq.gz 
-        fi 
-        '''
-	}
-}else{
-	readPairs3 = readPairs2
-	fastqc_postpairs=Channel.empty()
-	trimming_reports=Channel.empty()
-}
-
-readPairs_align = readPairs3.groupTuple(by: 0)
-
-
-//Mapping, mark duplicates and sorting
-process alignment {
-      cpus params.cpu
-      memory params.mem+'G'
-      tag { file_tag }
-      
-      input:
-      set val(file_tag), val(rg),  file(pair1), file(pair2)  from readPairs_align
-      file ref from ref.collect()
-      file gtf
-                  
-      output:
-      set val(file_tag), val(rg) , file("${file_tag}.bam"), file("${file_tag}.bam.bai") into bam_files
-      file("*Log*") into align_out
-      set val(file_tag), file("*SJ.out.junction") into SJ_out
-      file("*SJ.out.tab") into SJ_out_others
-      if( (params.sjtrim == null)&&(params.recalibration == null) ){
-      	publishDir params.output_folder, mode: 'copy', saveAs: {filename ->
-                 if (filename.indexOf(".bam") > 0)                      "BAM/$filename"
-            else if (filename.indexOf("SJ") > 0)              "BAM/$filename"
-            //else if (filename.indexOf("Log") > 0)             "QC/alignment/$filename"
-        }
-      }else{
-	publishDir params.output_folder, mode: 'copy', saveAs: {filename ->
-            if (filename.indexOf("SJ") > 0)              "BAM/$filename"
-            //else if (filename.indexOf("Log") > 0)             "QC/alignment/$filename"
-        }
-      }
-            
-      shell:
-      align_threads = params.cpu.intdiv(2)
-      sort_threads = params.cpu.intdiv(2) - 1
-      sort_mem     = params.mem.intdiv(4)
-      input_f1="${pair1[0]}"
-      rgtmp="${rg[0]}"
-      if(rgtmp=="") rgtmp="${file_tag}"
-      rgline="ID:${rgtmp} SM:${file_tag} ${params.RG}"
-      for( p1tmp in pair1.drop(1) ){
-	    input_f1=input_f1+",${p1tmp}"
-      }
-      for( rgtmp in rg.drop(1) ){
-	    if(rgtmp=="") rgtmp="${file_tag}"
-        rgline=rgline+" , ID:${rgtmp} SM:${file_tag} ${params.RG}"
-      }
-      if(suffix2){
-        input_f2="${pair2[0]}"
-        for( p2tmp in pair2.drop(1) ){
-            input_f2=input_f2+",${p2tmp}"
-        }
-        pairs="${input_f1} ${input_f2}"
-      }else{
-        pairs="${input_f1}"
-      }
-      '''
-      STAR --outSAMattrRGline !{rgline} --outSAMmapqUnique !{params.STAR_mapqUnique} --chimSegmentMin 12 --chimJunctionOverhangMin 12 \
-           --chimSegmentReadGapMax 3 --alignSJDBoverhangMin 10 --alignMatesGapMax 100000 --alignIntronMax 100000 \
-           --alignSJstitchMismatchNmax 5 -1 5 5 --outSAMstrandField intronMotif --chimMultimapScoreRange 10 --chimMultimapNmax 10 \
-           --chimNonchimScoreDropMin 10 --peOverlapNbasesMin 12 --peOverlapMMp 0.1 --chimOutJunctionFormat 1 --twopassMode Basic \
-           --outReadsUnmapped None --runThreadN !{align_threads} --genomeDir . --sjdbGTFfile !{gtf} --readFilesCommand zcat \
-           --readFilesIn !{pairs} --outStd SAM | samblaster --addMateTags | sambamba view -S -f bam -l 0 /dev/stdin | sambamba sort -t !{sort_threads} -m !{sort_mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam /dev/stdin
-      mv Chimeric.out.junction STAR.!{file_tag}.Chimeric.SJ.out.junction
-      mv SJ.out.tab STAR.!{file_tag}.SJ.out.tab
-      mv Log.final.out STAR.!{file_tag}.Log.final.out
-      mv Log.out STAR.!{file_tag}.Log.out
-      mv Log.progress.out    STAR.!{file_tag}.Log.progress.out
-      mv Log.std.out STAR.!{file_tag}.Log.std.out
-      '''
-}
-
-fasta_ref       = file(params.ref)
-fasta_ref_fai   = file(params.ref + '.fai')
-
-
-if( (params.sjtrim!=null)||(params.recalibration!=null) ){
-    fasta_ref_dictn = params.ref[0..<params.ref.lastIndexOf('.')]
-    fasta_ref_dict  = file(fasta_ref_dictn  + '.dict')
-}
-
-//Splice junctions trimming
-if(params.sjtrim){
-   
-   process splice_junct_trim {
-      cpus params.cpu_gatk
-      memory params.mem+'G'
-      tag { file_tag }
-      
-      input:
-      set val(file_tag), val(rg), file(bam), file(bai)  from bam_files
-      file fasta_ref
-      file fasta_ref_fai
-      file fasta_ref_dict     
-            
-      output:
-      set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into bam_files2
-      if(params.recalibration == null){
-        publishDir "${params.output_folder}/BAM", mode: 'copy'
-      }
-            
-      shell:
-      file_tag_new = file_tag+'_split'
-      '''
-      gatk SplitNCigarReads --java-options "-Xmx!{params.mem}G" -R !{fasta_ref} -I !{bam} -O !{file_tag_new}.bam
-      mv !{file_tag_new}.bai !{file_tag_new}.bam.bai
-      '''
-   }
-}else{
-      bam_files2=bam_files
-}
-
-
-//BQSrecalibration GATK4
-if(params.recalibration){
-   //get know site VCFs from GATK bundle
-   known_snps         = file( params.snp_vcf )
-   known_snps_index   = file( params.snp_vcf+'.tbi' )
-   known_indels       = file( params.indel_vcf )
-   known_indels_index = file( params.indel_vcf+'.tbi' )
-
-   process base_quality_score_recalibration {
-    	cpus params.cpu_gatk
-	memory params.mem+'G'
-    	tag { file_tag }
-        
-	publishDir "$params.output_folder/BAM/", mode: 'copy', pattern: "*bam*"
-	publishDir "$params.output_folder/QC/BAM/BQSR/", mode: 'copy',
-	saveAs: {filename -> 
-		if (filename.indexOf("table") > 0) "$filename"
-		else if (filename.indexOf("plots") > 0) "$filename"
-		else null
-	}
-
-    input:
-    set val(file_tag), val(rg), file("${file_tag}.bam"), file("${file_tag}.bam.bai") from bam_files2
-    file known_snps
-    file known_snps_index
-    file known_indels
-    file known_indels_index
-    file fasta_ref
-    file fasta_ref_fai
-    file fasta_ref_dict
-
-    output:
-    file("*_recal.table") into recal_table_files
-    file("*plots.pdf") into recal_plots_files
-    set val(file_tag_new), val(rg), file("${file_tag_new}.bam"), file("${file_tag_new}.bam.bai") into recal_bam_files
-
-    shell:
-    file_tag_new=file_tag+'_BQSRecalibrated'
-    '''
-    gatk BaseRecalibrator --java-options "-Xmx!{params.mem}G" -R !{fasta_ref} -I !{file_tag}.bam --known-sites !{known_snps} --known-sites !{known_indels} -O !{file_tag}_recal.table
-    gatk ApplyBQSR --java-options "-Xmx!{params.mem}G" -R !{fasta_ref} -I !{file_tag}.bam --bqsr-recal-file !{file_tag}_recal.table -O !{file_tag_new}.bam
-    gatk BaseRecalibrator --java-options "-Xmx!{params.mem}G" -R !{fasta_ref} -I !{file_tag_new}.bam --known-sites !{known_snps} --known-sites !{known_indels} -O !{file_tag_new}_recal.table		
-    gatk AnalyzeCovariates --java-options "-Xmx!{params.mem}G" -before !{file_tag}_recal.table -after !{file_tag_new}_recal.table -plots !{file_tag_new}_recalibration_plots.pdf	
-    mv !{file_tag_new}.bai !{file_tag_new}.bam.bai
-    '''
-   }
-}else{      
-      recal_bam_files=bam_files2
-}
-
-recal_bam_files.into { recal_bam_files4QC; recal_bam_files4quant ; recal_bam4QCsplittmp }
-
-//RSEQC
-process RSEQC{
-    		cpus '1'
-		memory params.mem_QC+'GB'
-    		tag { file_tag }
-        
-		input:
-    		set val(file_tag), val(rg), file(bam), file(bai) from recal_bam_files4QC
-		file bed
-		
-    		output:
-		file("${file_tag}_readdist.txt") into rseqc_files
-		file("*clipping*") into rseqc_clip_files
-		file("*jun_saturation*") into rseqc_jsat_files
-    		publishDir "${params.output_folder}/QC/bam", mode: 'copy'
-
-    		shell:
-    		'''
-		read_distribution.py -i !{bam} -r !{bed} > !{file_tag}"_readdist.txt"
-		clipping_profile.py  -i !{bam} -s "PE" -o !{file_tag}"_clipping"
-		junction_saturation.py -i !{bam} -r !{bed} -o !{file_tag}"_jun_saturation"
-    		'''
-}
-
-
-simple = Channel.create()
-recal_bam_files4QCsplit0 = Channel.create()
-recal_bam_files4QCsplit = Channel.create()
-recal_bam_files4QCsplit4test = Channel.create()
-recal_bam4QCsplittmp.choice( simple,recal_bam_files4QCsplit0 ) { a -> a[1].size() == 1 ? 0 : 1 }
-recal_bam_files4QCsplit0.into( recal_bam_files4QCsplit , recal_bam_files4QCsplit4test)
-
-process RSEQCsplit{
-                cpus '1'
-                memory params.mem_QC+'GB'
-                tag { file_tag }
-
-                input:
-                set val(file_tag), val(rg), file(bam), file(bai) from recal_bam_files4QCsplit
-                file bed
-
-                output:
-                file("*readdist.txt") into rseqc_files_split
-                publishDir "${params.output_folder}/QC/bam", mode: 'copy'
-
-                shell:
-		basename = bam.baseName
-                '''
-                samtools split !{bam} -f "%*_%!.%."
-		for f in `ls !{basename}_*.bam`;
-		do read_distribution.py -i $f -r !{bed} > ${f%.bam}"_readdist.txt";
-		done
-		'''
-}
-
-if( recal_bam_files4QCsplit4test.ifEmpty(0)==0 ){
-	recal_bam_files4QCsplit4test.subscribe { row -> println "${row}" }
-	println("No files to split")
-	rseqc_files_split = Channel.empty()
-}
-
-//Quantification
-process quantification{
-	cpus params.cpu
-    	if( (params.sjtrim)||(params.recalibration) ){
-		memory params.mem+'GB'
-	}else{
-		memory params.mem_QC+'GB'
-	}
-	
-    	tag { file_tag }
-        
-    	input:
-    	set val(file_tag), val(rg), file(bam), file(bai) from recal_bam_files4quant
-	file gtf
-
-    	output:
-	file("${file_tag}_count.txt") into htseq_files
-    	publishDir "${params.output_folder}/counts", mode: 'copy'
-
-    	shell:
-	buffer=''
-	if(params.htseq_maxreads) buffer='--max-reads-in-buffer '+params.htseq_maxreads
-	
-	if( (params.sjtrim)||(params.recalibration) ){
-	'''
-	mv !{file_tag}.bam !{file_tag}_coordinate_sorted.bam
-	sambamba sort -n -t !{task.cpus} -m !{params.mem}G --tmpdir=!{file_tag}_tmp -o !{file_tag}.bam !{file_tag}_coordinate_sorted.bam
-	htseq-count -n !{params.cpu} -r name -s !{params.stranded} -f bam !{file_tag}.bam !{gtf} !{buffer} --additional-attr=gene_name > !{file_tag}_count.txt 
-	'''
-	}else{
-	 	'''
-		htseq-count -n !{params.cpu} -r pos -s !{params.stranded} -f bam !{file_tag}.bam !{gtf} !{buffer} --additional-attr=gene_name > !{file_tag}_count.txt 
-    		'''
-	}
-}
-
-
-process multiqc_pretrim {
-    cpus '1'
-    memory params.mem_QC+'GB'
-    tag { "all"}
-        
-    input:
-    file fastqc1 from fastqc_pairs.collect()
-    file multiqc_config from ch_config_for_multiqc    
-    
-    output:
-    file("multiqc_pretrim_report.html") into multiqc_pre
-    file("multiqc_pretrim_report_data") into multiqc_pre_data
-    publishDir "${params.output_folder}/QC", mode: 'copy'
-
-    shell:
-    if( multiqc_config.name=='NO_FILE' ){
-        opt = ""
-    }else{
-        opt = "--config ${multiqc_config}"
-    }
-    '''
-    for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done;
-    multiqc . -n multiqc_pretrim_report.html -m fastqc !{opt} --comment "RNA-seq Pre-trimming QC report"
-    '''
-}
-
-
-process multiqc_posttrim {
-    cpus '1'
-    memory params.mem_QC+'GB'
-    tag { "all"}
-        
-    input:
-    file STAR from align_out.collect()
-    file htseq from htseq_files.collect()
-    file rseqc_clip from rseqc_clip_files.collect()
-    file rseqc from rseqc_files.collect()
-    file rseqc_jsat from rseqc_jsat_files.collect()
-    file trim from trimming_reports.collect().ifEmpty([])
-    file fastqcpost from fastqc_postpairs.collect().ifEmpty([])
-    file rseqc_split from rseqc_files_split.collect().ifEmpty([])
-    file multiqc_config from ch_config_for_multiqc
-        
-    output:
-    file("multiqc_posttrim_report.html") into multiqc_post
-    file("multiqc_posttrim_report_data") into multiqc_post_data
-
-    publishDir "${params.output_folder}/QC", mode: 'copy'
-
-    shell:
-    if( multiqc_config.name=='NO_FILE' ){
-	opt = ""
-    }else{
-	opt = "--config ${multiqc_config}"
-    }
-    '''
-    if $(compgen -G "*fastq.zip" > /dev/null); then for f in $(find *fastqc.zip -type l);do cp --remove-destination $(readlink $f) $f;done; fi;
-    multiqc . -n multiqc_posttrim_report.html -m fastqc -m cutadapt -m star -m rseqc -m htseq !{opt} --comment "RNA-seq Post-trimming QC report"
-    '''
-}
-

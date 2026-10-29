@@ -205,6 +205,7 @@ The output_folder directory contains three subfolders: BAM, counts, and QC
   | Name      | Email | Description     |
   |-----------|---------------|-----------------| 
   | Nicolas Alcala*    | AlcalaN@fellows.iarc.fr    | Developer to contact for support |
+  | Catherine Voegele    | voegelec@iarc.who.int    | Developer DSL2 |  
   | Noemie Leblay | LeblayN@students.iarc.fr | Tester |
   | Alexis Robitaille | RobitailleA@students.iarc.fr | Tester |
   
